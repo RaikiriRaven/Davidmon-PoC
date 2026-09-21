@@ -31,7 +31,7 @@ namespace Davidmon.Combat
 
         public static Camera CameraEnsure()
         {
-            return Camera.main != null ? Camera.main : Object.FindFirstObjectByType<Camera>();
+            return Camera.main != null ? Camera.main : Object.FindAnyObjectByType<Camera>();
         }
 
         public static Material TintedMaterial(Color tint)

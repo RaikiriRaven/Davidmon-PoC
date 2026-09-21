@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84981268bebd4944e8bb2a3a00d6145b, type: 3}
+  m_Name: leafhorn
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureData
+  creatureId: leafhorn
+  displayName: Leafhorn
+  description: A gentle guardian whose antlers bloom with young leaves.
+  icon: {fileID: 0}
+  element: 3
+  baseStats:
+    maxHp: 110
+    attack: 22
+    defense: 22
+    speed: 12
+  statGrowth:
+    maxHp: 7
+    attack: 2
+    defense: 2
+    speed: 1
+  isStarter: 1
+  walkSpeedMultiplier: 1
+  prefab: {fileID: 7366722933278868621, guid: fd668edd57daacd4289f15e35330edba, type: 3}
+  abilities:
+  - {fileID: 11400000, guid: 69a9693880b005f4aa57da691f5bad75, type: 2}
+  - {fileID: 11400000, guid: 19789d51863545243a0ef1737ac2ed90, type: 2}
+  - {fileID: 11400000, guid: 04bf6da7c549ebe459752a057b4dcc7c, type: 2}
+  - {fileID: 11400000, guid: aeb6ba93cbdf4ae4498ef8e9a0d98efe, type: 2}
+  evolutionStages:
+  - nextCreature: {fileID: 11400000, guid: fb5580e423da2ad4ea36fde65423a4b0, type: 2}
+    requiredLevel: 10
+    requiredItemId: 
+    requiredQuestId: 

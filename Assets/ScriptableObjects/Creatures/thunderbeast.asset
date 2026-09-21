@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84981268bebd4944e8bb2a3a00d6145b, type: 3}
+  m_Name: thunderbeast
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureData
+  creatureId: thunderbeast
+  displayName: Thunderbeast
+  description: A storm given form; lightning answers its call.
+  icon: {fileID: 0}
+  element: 4
+  baseStats:
+    maxHp: 205
+    attack: 80
+    defense: 44
+    speed: 52
+  statGrowth:
+    maxHp: 10
+    attack: 4
+    defense: 2
+    speed: 3
+  isStarter: 0
+  walkSpeedMultiplier: 1
+  prefab: {fileID: 403444505696378468, guid: ea61219e7e764a5498287f5f36934a43, type: 3}
+  abilities:
+  - {fileID: 11400000, guid: 69a9693880b005f4aa57da691f5bad75, type: 2}
+  - {fileID: 11400000, guid: 78e5d31d9928a984c9ba081c49fc2d2a, type: 2}
+  - {fileID: 11400000, guid: c578038860749a54a914c5a5fd4b6d6e, type: 2}
+  - {fileID: 11400000, guid: 9db26e41f8764b64e989454297505d3b, type: 2}
+  evolutionStages: []

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84981268bebd4944e8bb2a3a00d6145b, type: 3}
+  m_Name: verdantaur
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureData
+  creatureId: verdantaur
+  displayName: Verdantaur
+  description: A walking grove that can raise a forest in a single season.
+  icon: {fileID: 0}
+  element: 3
+  baseStats:
+    maxHp: 260
+    attack: 66
+    defense: 66
+    speed: 36
+  statGrowth:
+    maxHp: 12
+    attack: 3
+    defense: 3
+    speed: 2
+  isStarter: 0
+  walkSpeedMultiplier: 1
+  prefab: {fileID: 486922750393350921, guid: f4e5b143653fd0441bbf332dc5dfd938, type: 3}
+  abilities:
+  - {fileID: 11400000, guid: 69a9693880b005f4aa57da691f5bad75, type: 2}
+  - {fileID: 11400000, guid: 19789d51863545243a0ef1737ac2ed90, type: 2}
+  - {fileID: 11400000, guid: 04bf6da7c549ebe459752a057b4dcc7c, type: 2}
+  - {fileID: 11400000, guid: aeb6ba93cbdf4ae4498ef8e9a0d98efe, type: 2}
+  evolutionStages: []

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84981268bebd4944e8bb2a3a00d6145b, type: 3}
+  m_Name: stonecolossus
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureData
+  creatureId: stonecolossus
+  displayName: Stonecolossus
+  description: An ancient mountain that learned to walk.
+  icon: {fileID: 0}
+  element: 5
+  baseStats:
+    maxHp: 330
+    attack: 55
+    defense: 92
+    speed: 24
+  statGrowth:
+    maxHp: 14
+    attack: 3
+    defense: 5
+    speed: 1
+  isStarter: 0
+  walkSpeedMultiplier: 1
+  prefab: {fileID: 3906460012801779405, guid: 416cea306603f20419901ed4090010a4, type: 3}
+  abilities:
+  - {fileID: 11400000, guid: 69a9693880b005f4aa57da691f5bad75, type: 2}
+  - {fileID: 11400000, guid: a77d4832862f43948a23f3871e80a465, type: 2}
+  - {fileID: 11400000, guid: 4b305d48f2d70cc4f90145519bdaba4f, type: 2}
+  - {fileID: 11400000, guid: 25b7744568af77541bbd4c275b42e584, type: 2}
+  evolutionStages: []

@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84981268bebd4944e8bb2a3a00d6145b, type: 3}
+  m_Name: aquaphin
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureData
+  creatureId: aquaphin
+  displayName: Aquaphin
+  description: A playful finling that trails streams of fresh water.
+  icon: {fileID: 0}
+  element: 2
+  baseStats:
+    maxHp: 100
+    attack: 20
+    defense: 18
+    speed: 14
+  statGrowth:
+    maxHp: 7
+    attack: 2
+    defense: 2
+    speed: 1
+  isStarter: 1
+  walkSpeedMultiplier: 1
+  prefab: {fileID: 7358675356340102979, guid: 474807a7c14300f4a9010f5e89c51517, type: 3}
+  abilities:
+  - {fileID: 11400000, guid: 69a9693880b005f4aa57da691f5bad75, type: 2}
+  - {fileID: 11400000, guid: 12238cc0b7e24a24d99b61c66870b156, type: 2}
+  - {fileID: 11400000, guid: ce55de96147e3654b8df592d497b0e99, type: 2}
+  - {fileID: 11400000, guid: b295558f151c98540a8ebe722bbd29d6, type: 2}
+  evolutionStages:
+  - nextCreature: {fileID: 11400000, guid: e6734ff3d4adad94089b55badd190697, type: 2}
+    requiredLevel: 10
+    requiredItemId: 
+    requiredQuestId: 

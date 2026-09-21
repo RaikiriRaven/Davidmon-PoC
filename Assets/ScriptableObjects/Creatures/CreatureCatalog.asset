@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2068345ff931b4447914a223500a208f, type: 3}
+  m_Name: CreatureCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.CreatureCatalog
+  starters:
+  - {fileID: 11400000, guid: 150c4e0e034731c4ba62b540ca7d9f55, type: 2}
+  - {fileID: 11400000, guid: 1cb980cba60468c44956747308a77952, type: 2}
+  - {fileID: 11400000, guid: 0f04c2cbcee461d4eb939e91112868b4, type: 2}
+  - {fileID: 11400000, guid: 1154c700daa51c649a2b5f86f6be9535, type: 2}
+  - {fileID: 11400000, guid: af1e3a98f8c6e0747a6a5af75630e37e, type: 2}
+  allCreatures:
+  - {fileID: 11400000, guid: 150c4e0e034731c4ba62b540ca7d9f55, type: 2}
+  - {fileID: 11400000, guid: e2ae740eeb5e3fc4db34cb07c25875b0, type: 2}
+  - {fileID: 11400000, guid: 37c9cefec09fe4f4b9dd28e580128726, type: 2}
+  - {fileID: 11400000, guid: 1cb980cba60468c44956747308a77952, type: 2}
+  - {fileID: 11400000, guid: e6734ff3d4adad94089b55badd190697, type: 2}
+  - {fileID: 11400000, guid: 61e4fba891c207847a19c852f8c64910, type: 2}
+  - {fileID: 11400000, guid: 0f04c2cbcee461d4eb939e91112868b4, type: 2}
+  - {fileID: 11400000, guid: fb5580e423da2ad4ea36fde65423a4b0, type: 2}
+  - {fileID: 11400000, guid: 491352b26e563d74a9b6bc806772b29b, type: 2}
+  - {fileID: 11400000, guid: 1154c700daa51c649a2b5f86f6be9535, type: 2}
+  - {fileID: 11400000, guid: d7d61d507cba49545998596fddb0dd38, type: 2}
+  - {fileID: 11400000, guid: 74ade1e04eb39e5498aa5a9f6248c4c9, type: 2}
+  - {fileID: 11400000, guid: af1e3a98f8c6e0747a6a5af75630e37e, type: 2}
+  - {fileID: 11400000, guid: 1bfb90419d0dd084cbf95aef71e88287, type: 2}
+  - {fileID: 11400000, guid: 290d22f9f3801b7429b4e1fd926b9aad, type: 2}

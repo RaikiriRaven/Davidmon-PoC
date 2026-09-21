@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 833d9e4f3d1f0a5418d7f08124043f7a, type: 3}
+  m_Name: vine_swipe
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Creatures.AbilityData
+  abilityId: vine_swipe
+  displayName: Vine Swipe
+  description: Vines lash out in a wide arc.
+  element: 3
+  basePower: 40
+  accuracy: 1
+  cooldown: 2.8
+  range: 5
+  castType: 2
+  radius: 4
+  projectileSpeed: 0
+  isBasicAttack: 0

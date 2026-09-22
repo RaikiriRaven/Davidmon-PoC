@@ -53,8 +53,8 @@ namespace Davidmon.UI
             panel.anchorMin = new Vector2(0f, 0f);
             panel.anchorMax = new Vector2(0f, 0f);
             panel.pivot = new Vector2(0f, 0f);
-            panel.anchoredPosition = new Vector2(24f, 24f);
-            panel.sizeDelta = new Vector2(440f, 168f);
+            panel.anchoredPosition = new Vector2(24f, 135f);
+            panel.sizeDelta = new Vector2(440f, 125f);
             SetRaycastTarget(panel.gameObject, false);
 
             _nameText = UIFactory.CreateText(panel, "No creature", 30, TitleColor,
@@ -129,10 +129,11 @@ namespace Davidmon.UI
         {
             RectTransform bar = UIFactory.CreatePanel(canvas,
                 new Vector2(0f, 0f), new Vector2(0f, 0f), 0f, 0f, Color.clear);
+            bar.name = "MovesetPanel";
             bar.anchorMin = new Vector2(0.5f, 0f);
             bar.anchorMax = new Vector2(0.5f, 0f);
             bar.pivot = new Vector2(0.5f, 0f);
-            bar.anchoredPosition = new Vector2(0f, 24f);
+            bar.anchoredPosition = new Vector2(0f, 205f);
             bar.sizeDelta = Vector2.zero;
             SetRaycastTarget(bar.gameObject, false);
 

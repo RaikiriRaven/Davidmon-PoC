@@ -29,10 +29,10 @@ namespace Davidmon.UI
             var stackGo = new GameObject("ToastStack", typeof(RectTransform));
             RectTransform stackRt = stackGo.GetComponent<RectTransform>();
             stackRt.SetParent(canvas.transform, false);
-            stackRt.anchorMin = new Vector2(0.5f, 1f);
-            stackRt.anchorMax = new Vector2(0.5f, 1f);
+            stackRt.anchorMin = new Vector2(0.5f, 0.5f);
+            stackRt.anchorMax = new Vector2(0.5f, 0.5f);
             stackRt.pivot = new Vector2(0.5f, 1f);
-            stackRt.anchoredPosition = new Vector2(0f, -24f);
+            stackRt.anchoredPosition = new Vector2(0f, 230f);
             stackRt.sizeDelta = new Vector2(900f, 0f);
 
             var layout = stackGo.AddComponent<VerticalLayoutGroup>();

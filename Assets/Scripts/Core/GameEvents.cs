@@ -1,4 +1,5 @@
 using System;
+using Davidmon.NPC;
 
 namespace Davidmon.Core
 {
@@ -37,11 +38,20 @@ namespace Davidmon.Core
         public static event Action<string> EnemyEngaged;                  // enemyId
         public static event Action<string> BossDefeated;
 
+        // ----- Dialogue -----
+        public static event Action<NpcData> DialogueOpened;
+        public static event Action<NpcData, int> DialogueLineChanged;              // npc, 0-based line index
+        public static event Action<NpcData> DialogueChoicesShown;
+        public static event Action<NpcData, DialogueChoice> DialogueChoiceSelected;
+        public static event Action<NpcData, string> DialogueReplyShown;            // npc, reply text
+        public static event Action<NpcData> DialogueClosed;
+
         // ----- UI / Input -----
         public static event Action<bool> ChatInputChanged;                // isChatActive
         public static event Action<string> ShowNotification;              // message
         public static event Action<string> ShowLegendaryNotification;     // message
         public static event Action<string> InteractPrompt;                // prompt text or null to hide
+        public static event Action EscapeRequested;                        // raised when Esc is pressed over an open modal
 
         // ----- Lifecycle -----
         public static event Action GameWorldReady;
@@ -71,10 +81,18 @@ namespace Davidmon.Core
         public static void RaiseEnemyEngaged(string enemyId) => EnemyEngaged?.Invoke(enemyId);
         public static void RaiseBossDefeated() => BossDefeated?.Invoke(null);
 
+        public static void RaiseDialogueOpened(NpcData npc) => DialogueOpened?.Invoke(npc);
+        public static void RaiseDialogueLineChanged(NpcData npc, int index) => DialogueLineChanged?.Invoke(npc, index);
+        public static void RaiseDialogueChoicesShown(NpcData npc) => DialogueChoicesShown?.Invoke(npc);
+        public static void RaiseDialogueChoiceSelected(NpcData npc, DialogueChoice choice) => DialogueChoiceSelected?.Invoke(npc, choice);
+        public static void RaiseDialogueReplyShown(NpcData npc, string text) => DialogueReplyShown?.Invoke(npc, text);
+        public static void RaiseDialogueClosed(NpcData npc) => DialogueClosed?.Invoke(npc);
+
         public static void RaiseChatInputChanged(bool active) => ChatInputChanged?.Invoke(active);
         public static void RaiseShowNotification(string message) => ShowNotification?.Invoke(message);
         public static void RaiseShowLegendaryNotification(string message) => ShowLegendaryNotification?.Invoke(message);
         public static void RaiseInteractPrompt(string prompt) => InteractPrompt?.Invoke(prompt);
+        public static void RaiseEscapeRequested() => EscapeRequested?.Invoke();
 
         public static void RaiseGameWorldReady() => GameWorldReady?.Invoke();
     }

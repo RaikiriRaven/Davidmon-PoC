@@ -16,7 +16,7 @@ namespace Davidmon.Player
         [Header("Orbit")]
         [SerializeField] private float yaw = 0f;
         [SerializeField] private float pitch = 12f;
-        [SerializeField] private float sensitivity = 0.1f;
+        [SerializeField] private float sensitivity = 0.40f;
         [SerializeField] private float minPitch = -35f;
         [SerializeField] private float maxPitch = 70f;
 
@@ -36,6 +36,8 @@ namespace Davidmon.Player
 
         [SerializeField] private PlayerInputProvider input;
 
+        private Collider[] _targetColliders;
+
         private void Awake()
         {
             if (input == null) input = FindAnyObjectByType<PlayerInputProvider>();
@@ -45,6 +47,7 @@ namespace Davidmon.Player
         {
             if (target == null && Camera.main != null && Camera.main.transform.parent != null)
                 target = Camera.main.transform.parent;
+            CacheTargetColliders();
         }
 
         private void LateUpdate()
@@ -79,12 +82,15 @@ namespace Davidmon.Player
             Vector3 desiredPosition = focus - lookDirection * distance;
 
             float resolvedDistance = distance;
-            if (Physics.SphereCast(focus, collisionRadius, -lookDirection, out RaycastHit hit, distance, collisionMask,
-                    QueryTriggerInteraction.Ignore))
+            Ray ray = new Ray(focus, -lookDirection);
+            RaycastHit[] hits = Physics.SphereCastAll(ray, collisionRadius, distance, collisionMask,
+                QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hits.Length; i++)
             {
-                resolvedDistance = Mathf.Max(hit.distance, 0f);
-                desiredPosition = focus - lookDirection * resolvedDistance;
+                if (IsTargetCollider(hits[i].collider)) continue;
+                resolvedDistance = Mathf.Min(resolvedDistance, Mathf.Max(hits[i].distance, 0f));
             }
+            desiredPosition = focus - lookDirection * resolvedDistance;
 
             float t = 1f - Mathf.Exp(-positionSmooth * deltaTime);
             transform.position = Vector3.Lerp(transform.position, desiredPosition, t);
@@ -97,6 +103,24 @@ namespace Davidmon.Player
         public void SetTarget(Transform newTarget)
         {
             target = newTarget;
+            CacheTargetColliders();
+        }
+
+        /// <summary>Colliders belonging to the follow target so the camera ignores the player itself.</summary>
+        private void CacheTargetColliders()
+        {
+            _targetColliders = target != null ? target.GetComponentsInChildren<Collider>(true) : null;
+        }
+
+        private bool IsTargetCollider(Collider collider)
+        {
+            if (collider == null || _targetColliders == null) return false;
+            for (int i = 0; i < _targetColliders.Length; i++)
+            {
+                if (_targetColliders[i] == collider)
+                    return true;
+            }
+            return false;
         }
     }
 }

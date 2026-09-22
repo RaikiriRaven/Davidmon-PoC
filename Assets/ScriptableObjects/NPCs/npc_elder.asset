@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22f8cf7f54e8154489385c5dc249488f, type: 3}
+  m_Name: npc_elder
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.NPC.NpcData
+  npcId: npc_elder
+  displayName: Village Elder
+  title: Elder of Sunderglen
+  description: "Village Elder \u2014 Elder of Sunderglen"
+  robeColor: {r: 0.13, g: 0.35, b: 0.3, a: 1}
+  skinColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
+  hasHat: 1
+  prefab: {fileID: 0}
+  interactionHint: Talk
+  interactRadius: 3.5
+  introLines:
+  - speaker: 
+    text: Welcome to Sunderglen, traveler. Sit a while.
+  - speaker: 
+    text: These wild creatures share the land; they can be fought, but never caught. Train what you begin with.
+  - speaker: 
+    text: The ruins to the east hold a power this village cannot contain. Grow strong before you face it.
+  choices:
+  - label: Tell me about the wilds
+    action: 0
+    reply: Every creature holds a spark of the wild. Befriend one, grow with it, and it will never forsake you.
+  - label: I will remember that.
+    action: 0
+    reply: 
+  isHealer: 0

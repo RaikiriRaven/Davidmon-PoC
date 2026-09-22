@@ -58,6 +58,7 @@ namespace Davidmon.UI
                     playerManager?.SetCreature(saved);
                     _confirmed = true;
                     Hide();
+                    GameEvents.RaiseShowNotification("Press [ESC] to toggle the cursor");
                     return;
                 }
             }
@@ -70,18 +71,20 @@ namespace Davidmon.UI
             _root = _canvas.gameObject;
             RectTransform backdrop = UIFactory.CreateFullPanel(_root.transform, PanelColor);
 
-            UIFactory.CreateText(backdrop, "CHOOSE YOUR PARTNER", 62, AccentColor,
-                TextAnchor.UpperCenter, FontStyle.Bold, "Title").rectTransform.anchoredPosition = new Vector2(0f, -60f);
+            RectTransform titleRt = UIFactory.CreateText(backdrop, "CHOOSE YOUR PARTNER", 62, AccentColor,
+                TextAnchor.UpperCenter, FontStyle.Bold, "Title").rectTransform;
+            titleRt.offsetMin = new Vector2(0f, 180f);
+            titleRt.offsetMax = new Vector2(0f, -180f);
             UIFactory.CreateText(backdrop, "Pick a starter creature to enter the world.", 26, MutedColor,
                 TextAnchor.UpperCenter, FontStyle.Normal, "Subtitle").rectTransform.anchoredPosition = new Vector2(0f, -125f);
 
             RectTransform listArea = UIFactory.CreateCenteredPanel(backdrop, new Vector2(1500f, 480f), new Color(0f, 0f, 0f, 0f));
-            listArea.anchoredPosition = new Vector2(0f, 80f);
+            listArea.anchoredPosition = new Vector2(0f, 5f);
 
             DrawStarterButtons(listArea);
 
             RectTransform detailArea = UIFactory.CreateCenteredPanel(backdrop, new Vector2(1200f, 180f), new Color(0f, 0f, 0f, 0f));
-            detailArea.anchoredPosition = new Vector2(0f, -170f);
+            detailArea.anchoredPosition = new Vector2(0f, 200f);
             _detailText = UIFactory.CreateText(detailArea, "Select a creature to see its details.", 24, MutedColor,
                 TextAnchor.UpperCenter, FontStyle.Normal, "DetailText");
             _detailText.rectTransform.anchoredPosition = new Vector2(0f, -10f);
@@ -89,7 +92,7 @@ namespace Davidmon.UI
             _confirmButton = UIFactory.CreateButton(backdrop, new Vector2(320f, 70f), "CONFIRM", 30,
                 OnConfirmClicked, AccentColor, new Color(0.1f, 0.07f, 0.02f, 1f), "ConfirmButton");
             _confirmButton.transform.SetParent(backdrop, false);
-            _confirmButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 250f);
+            _confirmButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -325f);
             _confirmButton.interactable = false;
         }
 
@@ -143,22 +146,21 @@ namespace Davidmon.UI
             playerManager?.SetCreature(_selected);
             _confirmed = true;
             Hide();
+            GameEvents.RaiseShowNotification("Press [ESC] to toggle the cursor");
         }
 
         public void Show()
         {
             if (!_confirmed) _root.SetActive(true);
             input?.SetMovementLocked(true);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Core.CursorManager.Current?.RequestModal();
         }
 
         public void Hide()
         {
             _root.SetActive(false);
             input?.SetMovementLocked(false);
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Core.CursorManager.Current?.ReleaseModal();
             GameEvents.RaiseCreatureSpawned(_selected != null ? _selected.CreatureId : "");
         }
     }

@@ -35,6 +35,9 @@ namespace Davidmon.UI
         private Text _headerText;
         private Image _flash;
         private bool _busy;
+        private CanvasScaler _scaler;
+        private float _cardWidth = 280f;
+        private float _cardGap = 30f;
 
         private void Awake()
         {
@@ -52,6 +55,7 @@ namespace Davidmon.UI
             GameEvents.LevelUp += OnLevelUp;
             GameEvents.CreatureEvolved += OnEvolved;
             GameEvents.CreatureSelected += OnSelected;
+            GameEvents.EscapeRequested += OnEscapeRequested;
         }
 
         private void OnDisable()
@@ -60,6 +64,12 @@ namespace Davidmon.UI
             GameEvents.LevelUp -= OnLevelUp;
             GameEvents.CreatureEvolved -= OnEvolved;
             GameEvents.CreatureSelected -= OnSelected;
+            GameEvents.EscapeRequested -= OnEscapeRequested;
+        }
+
+        private void OnEscapeRequested()
+        {
+            if (_panelRoot != null && _panelRoot.activeSelf) ClosePanel();
         }
 
         /// <summary>Opens the panel when closed, closes it when open.</summary>
@@ -73,14 +83,15 @@ namespace Davidmon.UI
         private void Build()
         {
             Canvas canvas = UIFactory.CreateCanvas("EvolutionCanvas", 80);
+            _scaler = canvas.GetComponent<CanvasScaler>();
 
-            Button toggle = UIFactory.CreateButton(canvas.transform, new Vector2(230f, 56f),
-                "EVOLUTIONS", 24, TogglePanel, new Color(0.18f, 0.14f, 0.06f, 0.95f), AccentColor, "EvolutionsButton");
+            Button toggle = UIFactory.CreateButton(canvas.transform, new Vector2(280f, 64f),
+                "EVOLUTIONS", 27, TogglePanel, new Color(0.24f, 0.17f, 0.05f, 0.98f), AccentColor, "EvolutionsButton");
             RectTransform toggleRt = (RectTransform)toggle.transform;
-            toggleRt.anchorMin = new Vector2(1f, 0f);
-            toggleRt.anchorMax = new Vector2(1f, 0f);
-            toggleRt.pivot = new Vector2(1f, 0f);
-            toggleRt.anchoredPosition = new Vector2(-24f, 24f);
+            toggleRt.anchorMin = new Vector2(0.5f, 0f);
+            toggleRt.anchorMax = new Vector2(0.5f, 0f);
+            toggleRt.pivot = new Vector2(0.5f, 0f);
+            toggleRt.anchoredPosition = new Vector2(0f, 116f);
 
             RectTransform panel = UIFactory.CreateFullPanel(canvas.transform, PanelColor);
             panel.gameObject.name = "EvolutionPanel";
@@ -112,8 +123,7 @@ namespace Davidmon.UI
         {
             _panelRoot.SetActive(true);
             _input?.SetMovementLocked(true);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Core.CursorManager.Current?.RequestModal();
             RefreshHeader();
             Rebuild();
         }
@@ -123,8 +133,7 @@ namespace Davidmon.UI
             if (_busy) return;
             _panelRoot.SetActive(false);
             _input?.SetMovementLocked(false);
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Core.CursorManager.Current?.ReleaseModal();
         }
 
         private void RefreshHeader()
@@ -154,8 +163,42 @@ namespace Davidmon.UI
                 return;
             }
 
+            UpdateCardLayout(stages.Count);
             for (int i = 0; i < stages.Count; i++)
                 CreateCard(stages[i], i, stages.Count);
+        }
+
+        private void UpdateCardLayout(int count)
+        {
+            _cardWidth = 280f;
+            _cardGap = 30f;
+            if (count <= 1) return;
+
+            float refW = _scaler != null ? _scaler.referenceResolution.x : 1920f;
+            float refH = _scaler != null ? _scaler.referenceResolution.y : 1080f;
+            float match = _scaler != null ? _scaler.matchWidthOrHeight : 0.5f;
+
+            float sx = Screen.width / refW;
+            float sy = Screen.height / refH;
+            float scale = Mathf.Exp(Mathf.Lerp(Mathf.Log(sx), Mathf.Log(sy), match));
+            if (scale < 0.001f) scale = 1f;
+
+            float available = (Screen.width * 0.96f) / scale - 160f;
+            float total = count * 280f + (count - 1) * 30f;
+            if (total <= available) return;
+
+            for (float w = 260f; w >= 150f; w -= 10f)
+            {
+                float gap = Mathf.Max(12f, Mathf.Min(30f, (available - count * w) / (count - 1)));
+                if (count * w + (count - 1) * gap <= available)
+                {
+                    _cardWidth = w;
+                    _cardGap = gap;
+                    return;
+                }
+            }
+            _cardWidth = 150f;
+            _cardGap = 12f;
         }
 
         private void CreateMessage(string text)
@@ -174,16 +217,19 @@ namespace Davidmon.UI
 
             RectTransform card = CreateCardBox(index, count);
 
-            Image icon = CreateImage(card, new Vector2(210f, 210f), new Vector2(0f, 80f));
+            float iconSize = Mathf.Min(216f, _cardWidth - 28f);
+            Image icon = CreateImage(card, new Vector2(iconSize, iconSize), new Vector2(0f, 80f));
             icon.sprite = IconFor(target);
             icon.color = unlocked ? Color.white : LockedColor;
 
             UIFactory.CreateText(icon.rectTransform,
                 unlocked ? Monogram(targetName) : "?",
-                unlocked ? 64 : 74, unlocked ? new Color(1f, 1f, 1f, 0.85f) : LockedSymbolColor,
+                unlocked ? (int)Mathf.Min(64f, iconSize * 0.3f) : (int)Mathf.Min(74f, iconSize * 0.34f),
+                unlocked ? new Color(1f, 1f, 1f, 0.85f) : LockedSymbolColor,
                 TextAnchor.MiddleCenter, FontStyle.Bold, "Monogram");
 
-            UIFactory.CreateText(card, unlocked ? targetName : "???", 30,
+            int nameSize = _cardWidth >= 240 ? 30 : (_cardWidth >= 180 ? 24 : 18);
+            UIFactory.CreateText(card, unlocked ? targetName : "???", nameSize,
                 unlocked ? TextColor : MutedColor, TextAnchor.MiddleCenter, FontStyle.Bold, "Name")
                 .rectTransform.anchoredPosition = new Vector2(0f, -60f);
 
@@ -196,7 +242,7 @@ namespace Davidmon.UI
                 TextAnchor.MiddleCenter, FontStyle.Normal, "Req")
                 .rectTransform.anchoredPosition = new Vector2(0f, -96f);
 
-            Button evolve = UIFactory.CreateButton(card, new Vector2(170f, 52f), "EVOLVE", 22,
+            Button evolve = UIFactory.CreateButton(card, new Vector2(Mathf.Min(170f, _cardWidth - 40f), 52f), "EVOLVE", 22,
                 () => Evolve(stage), AccentColor, new Color(0.10f, 0.07f, 0.02f, 1f), "EvolveButton");
             ((RectTransform)evolve.transform).anchoredPosition = new Vector2(0f, -160f);
             evolve.interactable = unlocked && !_busy;
@@ -334,11 +380,11 @@ namespace Davidmon.UI
             var go = new GameObject("EvoCard", typeof(RectTransform), typeof(Image));
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.SetParent(_cardsRoot, false);
-            rt.sizeDelta = new Vector2(280f, 400f);
+            rt.sizeDelta = new Vector2(_cardWidth, 400f);
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = new Vector2((index - (count - 1) * 0.5f) * 310f, 0f);
+            rt.anchoredPosition = new Vector2((index - (count - 1) * 0.5f) * (_cardWidth + _cardGap), 0f);
             Image img = go.GetComponent<Image>();
             img.sprite = UIFactory.WhiteSprite();
             img.color = CardColor;

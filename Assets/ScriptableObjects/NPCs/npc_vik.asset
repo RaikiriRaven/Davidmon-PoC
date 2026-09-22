@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22f8cf7f54e8154489385c5dc249488f, type: 3}
+  m_Name: npc_vik
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.NPC.NpcData
+  npcId: npc_vik
+  displayName: Vik
+  title: Battle Trainer
+  description: "Vik \u2014 Battle Trainer"
+  robeColor: {r: 0.55, g: 0.18, b: 0.16, a: 1}
+  skinColor: {r: 0.93, g: 0.8, b: 0.68, a: 1}
+  hasHat: 0
+  prefab: {fileID: 0}
+  interactionHint: Talk
+  interactRadius: 3.5
+  introLines:
+  - speaker: 
+    text: The wild creatures here will test you. Stand your ground.
+  choices:
+  - label: Any advice?
+    action: 0
+    reply: Watch their tells and time your strikes. Victory favors the patient.
+  - label: Goodbye.
+    action: 0
+    reply: 
+  isHealer: 0

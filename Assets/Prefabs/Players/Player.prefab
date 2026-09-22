@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 5650713283626998271}
   - component: {fileID: 8174475685043456772}
   - component: {fileID: 6694551392027106132}
+  - component: {fileID: 1238737938584365353}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -192,3 +193,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1b314aa12852464b999f2608d0cda8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Combat.AbilityCaster
+--- !u!114 &1238737938584365353
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8487572635713187516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4371d42b8ce0b9f49b94d13e50a8a196, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.World.PlayerInteraction
+  input: {fileID: 0}

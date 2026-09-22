@@ -41,6 +41,9 @@ namespace Davidmon.Player
         /// <summary>Fired whenever the "Attack" action fires (left mouse / right trigger).</summary>
         public event Action AttackPressed;
 
+        /// <summary>Fired whenever the "Inventory" action fires (I key / Tab).</summary>
+        public event Action InventoryPressed;
+
         private void Awake()
         {
             if (inputAsset == null)
@@ -70,6 +73,7 @@ namespace Davidmon.Player
             inputAsset?.Enable();
             if (Interact != null) Interact.performed += OnInteractPerformed;
             if (Attack != null) Attack.performed += OnAttackPerformed;
+            if (Inventory != null) Inventory.performed += OnInventoryPerformed;
             if (Abilities != null)
                 for (int i = 0; i < Abilities.Length; i++)
                     if (Abilities[i] != null)
@@ -80,6 +84,7 @@ namespace Davidmon.Player
         {
             if (Interact != null) Interact.performed -= OnInteractPerformed;
             if (Attack != null) Attack.performed -= OnAttackPerformed;
+            if (Inventory != null) Inventory.performed -= OnInventoryPerformed;
             if (Abilities != null)
                 for (int i = 0; i < Abilities.Length; i++)
                     if (Abilities[i] != null)
@@ -104,6 +109,11 @@ namespace Davidmon.Player
         private void OnAttackPerformed(InputAction.CallbackContext context)
         {
             AttackPressed?.Invoke();
+        }
+
+        private void OnInventoryPerformed(InputAction.CallbackContext context)
+        {
+            InventoryPressed?.Invoke();
         }
 
         private void OnAbilityPerformed(InputAction.CallbackContext context)

@@ -25,6 +25,7 @@ namespace Davidmon.UI
         private GameObject _root;
         private Text _detailText;
         private Button _confirmButton;
+        private Button _retryButton;
         private bool _confirmed;
 
         private readonly List<Button> _starterButtons = new List<Button>();
@@ -38,17 +39,19 @@ namespace Davidmon.UI
 
         private void Awake()
         {
-            if (catalog == null) catalog = CreatureRegistry.Catalog;
             if (input == null) input = FindAnyObjectByType<PlayerInputProvider>();
             if (playerManager == null) playerManager = FindAnyObjectByType<PlayerManager>();
 
             UIFactory.EnsureEventSystem();
-            BuildScreen();
-            Hide();
+            GameEvents.EscapeRequested += OnEscapeRequested;
         }
 
         private void Start()
         {
+            catalog = ResolveCatalog();
+            BuildScreen();
+            Hide();
+
             if (PlayerPrefs.HasKey(SaveKey))
             {
                 string savedId = PlayerPrefs.GetString(SaveKey);
@@ -63,6 +66,21 @@ namespace Davidmon.UI
                 }
             }
             Show();
+        }
+
+        private void OnDestroy()
+        {
+            GameEvents.EscapeRequested -= OnEscapeRequested;
+        }
+
+        /// <summary>
+        /// Prefers the serialized reference and falls back to the runtime registry.
+        /// Called from Start (after every Awake) so the bootstrap has populated it,
+        /// and again on RETRY so a late-loading catalog becomes usable.
+        /// </summary>
+        private CreatureCatalog ResolveCatalog()
+        {
+            return catalog != null ? catalog : CreatureRegistry.Catalog;
         }
 
         private void BuildScreen()
@@ -89,11 +107,55 @@ namespace Davidmon.UI
                 TextAnchor.UpperCenter, FontStyle.Normal, "DetailText");
             _detailText.rectTransform.anchoredPosition = new Vector2(0f, -10f);
 
-            _confirmButton = UIFactory.CreateButton(backdrop, new Vector2(320f, 70f), "CONFIRM", 30,
-                OnConfirmClicked, AccentColor, new Color(0.1f, 0.07f, 0.02f, 1f), "ConfirmButton");
-            _confirmButton.transform.SetParent(backdrop, false);
-            _confirmButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -325f);
-            _confirmButton.interactable = false;
+            bool hasStarters = catalog != null && catalog.Starters.Count > 0;
+            if (hasStarters)
+            {
+                _confirmButton = UIFactory.CreateButton(backdrop, new Vector2(320f, 70f), "CONFIRM", 30,
+                    OnConfirmClicked, AccentColor, new Color(0.1f, 0.07f, 0.02f, 1f), "ConfirmButton");
+                _confirmButton.transform.SetParent(backdrop, false);
+                _confirmButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -325f);
+                _confirmButton.interactable = false;
+            }
+            else
+            {
+                _retryButton = UIFactory.CreateButton(backdrop, new Vector2(320f, 70f), "RETRY", 30,
+                    OnRetryClicked, AccentColor, new Color(0.1f, 0.07f, 0.02f, 1f), "RetryButton");
+                _retryButton.transform.SetParent(backdrop, false);
+                _retryButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -325f);
+            }
+        }
+
+        private void OnRetryClicked()
+        {
+            Rebuild();
+        }
+
+        private void Rebuild()
+        {
+            catalog = ResolveCatalog();
+            if (_canvas != null) Destroy(_canvas.gameObject);
+
+            _starterButtons.Clear();
+            _detailText = null;
+            _confirmButton = null;
+            _retryButton = null;
+
+            BuildScreen();
+            Show();
+        }
+
+        /// <summary>
+        /// Escape only dismisses the broken no-catalog state so the player can never
+        /// get soft-locked. In the healthy flow the selection is mandatory, so Esc
+        /// intentionally does nothing there while a selection is pending.
+        /// </summary>
+        private void OnEscapeRequested()
+        {
+            if (_root != null && _root.activeSelf && (catalog == null || catalog.Starters.Count == 0))
+            {
+                Hide();
+                GameEvents.RaiseShowNotification("No starter catalog available. Press RETRY or fix the creature catalog asset.");
+            }
         }
 
         private void DrawStarterButtons(RectTransform parent)

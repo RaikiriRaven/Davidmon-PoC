@@ -65,6 +65,7 @@ namespace Davidmon.Combat
 
         private void Update()
         {
+            if (_pm == null) _pm = ServiceLocator.Get<PlayerManager>();
             if (_cam == null) _cam = Camera.main;
         }
 

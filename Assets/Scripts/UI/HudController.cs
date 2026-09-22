@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using Davidmon.Combat;
 using Davidmon.Core;
 using Davidmon.Creatures;
+using Davidmon.Inventory;
 using Davidmon.Player;
 
 namespace Davidmon.UI
@@ -21,8 +22,12 @@ namespace Davidmon.UI
         private static readonly Color PanelColor = new Color(0.06f, 0.06f, 0.09f, 0.62f);
         private static readonly Color TitleColor = new Color(0.95f, 0.95f, 0.92f, 1f);
         private static readonly Color MutedColor = new Color(0.70f, 0.70f, 0.72f, 1f);
+        private static readonly Color CoinColor = new Color(0.95f, 0.78f, 0.22f, 1f);
 
         [SerializeField] private PlayerManager playerManager;
+
+        private Wallet _wallet;
+        private Text _coinsText;
 
         private Text _nameText;
         private Text _subText;
@@ -57,6 +62,18 @@ namespace Davidmon.UI
             panel.sizeDelta = new Vector2(440f, 125f);
             SetRaycastTarget(panel.gameObject, false);
 
+            _wallet = ServiceLocator.GetOrCreate(() => new Wallet());
+            _coinsText = UIFactory.CreateText(panel, "", 20, CoinColor,
+                TextAnchor.UpperRight, FontStyle.Bold, "Coins");
+            RectTransform coinsRt = _coinsText.rectTransform;
+            coinsRt.anchorMin = new Vector2(0f, 1f);
+            coinsRt.anchorMax = new Vector2(1f, 1f);
+            coinsRt.pivot = new Vector2(1f, 1f);
+            coinsRt.anchoredPosition = new Vector2(-10f, -8f);
+            coinsRt.sizeDelta = new Vector2(210f, 30f);
+            _coinsText.raycastTarget = false;
+            _coinsText.text = CoinLabel(_wallet != null ? _wallet.Coins : 0L);
+
             _nameText = UIFactory.CreateText(panel, "No creature", 30, TitleColor,
                 TextAnchor.UpperLeft, FontStyle.Bold, "Name");
             _nameText.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -89,6 +106,7 @@ namespace Davidmon.UI
             GameEvents.CreatureSelected += OnSelected;
             GameEvents.AbilitySelected += OnAbilitySelected;
             GameEvents.CreatureHpChanged += OnCreatureHpChanged;
+            GameEvents.CurrencyChanged += OnCurrencyChanged;
         }
 
         private void OnDisable()
@@ -99,6 +117,7 @@ namespace Davidmon.UI
             GameEvents.CreatureSelected -= OnSelected;
             GameEvents.AbilitySelected -= OnAbilitySelected;
             GameEvents.CreatureHpChanged -= OnCreatureHpChanged;
+            GameEvents.CurrencyChanged -= OnCurrencyChanged;
         }
 
         private void Start()
@@ -119,6 +138,13 @@ namespace Davidmon.UI
                 SetBar(_hpFill, _hpText, frac, "HP " + inst.CurrentHp + "/" + inst.MaxHp);
             }
         }
+
+        private void OnCurrencyChanged(long oldAmount, long newAmount)
+        {
+            if (_coinsText != null) _coinsText.text = CoinLabel(newAmount);
+        }
+
+        private static string CoinLabel(long amount) => "\u25c8 " + amount;
 
         private void Update()
         {

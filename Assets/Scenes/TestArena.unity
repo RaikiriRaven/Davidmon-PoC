@@ -2446,6 +2446,7 @@ GameObject:
   - component: {fileID: 1282152245}
   - component: {fileID: 1282152244}
   - component: {fileID: 1282152246}
+  - component: {fileID: 1282152247}
   m_Layer: 0
   m_Name: Systems
   m_TagString: Untagged
@@ -2507,6 +2508,19 @@ MonoBehaviour:
   - aquaphin
   defaultLevels: 03000000040000000500000002000000i
   parent: {fileID: 0}
+--- !u!114 &1282152247
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1282152243}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8c2e4511d353b8438c38c9cd41a90ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.Core.ItemRegistryBootstrap
+  catalog: {fileID: 11400000, guid: 31bbb88e630904b4a8b9edb6fdc0529b, type: 2}
 --- !u!21 &1567120592
 Material:
   serializedVersion: 8
@@ -3697,6 +3711,7 @@ GameObject:
   - component: {fileID: 2030005238}
   - component: {fileID: 2030005239}
   - component: {fileID: 2030005240}
+  - component: {fileID: 2030005241}
   m_Layer: 0
   m_Name: GameUI
   m_TagString: Untagged
@@ -3798,6 +3813,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4708a6c3e99e3f498a285302ff52f18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Davidmon.NPC.DialogueUI
+--- !u!114 &2030005241
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2030005233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b583a9b698b1c534da4513baaf393123, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.UI.InventoryUI
 --- !u!21 &2053402514
 Material:
   serializedVersion: 8

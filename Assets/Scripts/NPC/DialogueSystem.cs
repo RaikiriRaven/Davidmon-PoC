@@ -139,7 +139,10 @@ namespace Davidmon.NPC
                     break;
 
                 case DialogueAction.Shop:
-                    GameEvents.RaiseShowNotification("The shop is not open yet.");
+                    NpcData merchant = _current != null ? _current.Data : null;
+                    Close();
+                    if (merchant != null) GameEvents.RaiseShopRequested(merchant);
+                    _waitingForClose = true;
                     break;
 
                 case DialogueAction.Quest:

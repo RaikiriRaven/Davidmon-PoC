@@ -3712,6 +3712,7 @@ GameObject:
   - component: {fileID: 2030005239}
   - component: {fileID: 2030005240}
   - component: {fileID: 2030005241}
+  - component: {fileID: 2030005242}
   m_Layer: 0
   m_Name: GameUI
   m_TagString: Untagged
@@ -3825,6 +3826,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b583a9b698b1c534da4513baaf393123, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Davidmon.UI.InventoryUI
+--- !u!114 &2030005242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2030005233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d2dc74b140539c47bc8c05aefe345f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Davidmon.UI.ShopUI
+  stock: {fileID: 11400000, guid: ef03fa4da177c644ab7c84dfb2e6f7cc, type: 2}
 --- !u!21 &2053402514
 Material:
   serializedVersion: 8

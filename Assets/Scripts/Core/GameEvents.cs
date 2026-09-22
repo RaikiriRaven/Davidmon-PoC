@@ -45,6 +45,7 @@ namespace Davidmon.Core
         public static event Action<NpcData, DialogueChoice> DialogueChoiceSelected;
         public static event Action<NpcData, string> DialogueReplyShown;            // npc, reply text
         public static event Action<NpcData> DialogueClosed;
+        public static event Action<NpcData> ShopRequested;                         // npc merchant (null if unknown)
 
         // ----- UI / Input -----
         public static event Action<bool> ChatInputChanged;                // isChatActive
@@ -87,6 +88,7 @@ namespace Davidmon.Core
         public static void RaiseDialogueChoiceSelected(NpcData npc, DialogueChoice choice) => DialogueChoiceSelected?.Invoke(npc, choice);
         public static void RaiseDialogueReplyShown(NpcData npc, string text) => DialogueReplyShown?.Invoke(npc, text);
         public static void RaiseDialogueClosed(NpcData npc) => DialogueClosed?.Invoke(npc);
+        public static void RaiseShopRequested(NpcData npc) => ShopRequested?.Invoke(npc);
 
         public static void RaiseChatInputChanged(bool active) => ChatInputChanged?.Invoke(active);
         public static void RaiseShowNotification(string message) => ShowNotification?.Invoke(message);

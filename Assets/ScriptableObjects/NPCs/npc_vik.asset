@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Davidmon.NPC.NpcData
   npcId: npc_vik
   displayName: Vik
-  title: Battle Trainer
-  description: "Vik \u2014 Battle Trainer"
+  title: Merchant
+  description: "Vik \u2014 Merchant"
   robeColor: {r: 0.55, g: 0.18, b: 0.16, a: 1}
   skinColor: {r: 0.93, g: 0.8, b: 0.68, a: 1}
   hasHat: 0
@@ -24,11 +24,14 @@ MonoBehaviour:
   interactRadius: 3.5
   introLines:
   - speaker: 
-    text: The wild creatures here will test you. Stand your ground.
+    text: Fresh goods, friend. Take a look and grab what you need.
   choices:
+  - label: Browse the shop
+    action: 3
+    reply: 
   - label: Any advice?
     action: 0
-    reply: Watch their tells and time your strikes. Victory favors the patient.
+    reply: Stock up on potions before you wander far. The wilds bite back.
   - label: Goodbye.
     action: 0
     reply: 

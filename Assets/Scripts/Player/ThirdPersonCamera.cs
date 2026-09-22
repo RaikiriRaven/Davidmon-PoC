@@ -45,8 +45,11 @@ namespace Davidmon.Player
 
         private void Start()
         {
-            if (target == null && Camera.main != null && Camera.main.transform.parent != null)
-                target = Camera.main.transform.parent;
+            if (target == null)
+            {
+                GameObject player = GameObject.FindGameObjectWithTag("Player");
+                if (player != null) target = player.transform;
+            }
             CacheTargetColliders();
         }
 
@@ -114,7 +117,9 @@ namespace Davidmon.Player
 
         private bool IsTargetCollider(Collider collider)
         {
-            if (collider == null || _targetColliders == null) return false;
+            if (collider == null) return false;
+            if (target != null && collider.transform.IsChildOf(target)) return true;
+            if (_targetColliders == null) return false;
             for (int i = 0; i < _targetColliders.Length; i++)
             {
                 if (_targetColliders[i] == collider)

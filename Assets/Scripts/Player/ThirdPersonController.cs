@@ -53,6 +53,9 @@ namespace Davidmon.Player
                 return;
             }
 
+            if (cameraTransform == null)
+                cameraTransform = Camera.main != null ? Camera.main.transform : transform;
+
             Vector2 moveInput = input.Move.ReadValue<Vector2>();
             IsSprinting = input.Sprint.IsPressed();
 

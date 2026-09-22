@@ -191,8 +191,9 @@ namespace Davidmon.NPC
             for (int i = 0; i < count; i++)
             {
                 DialogueChoice choice = data.Choices[i];
+                int selectedIndex = i;
                 Button button = UIFactory.CreateButton(_choicesRoot, new Vector2(560f, 62f), choice.Label, 24,
-                    () => { if (_dialogue != null) _dialogue.SelectChoice(i); },
+                    () => { if (_dialogue != null) _dialogue.SelectChoice(selectedIndex); },
                     ChoiceColor, new Color(0.94f, 0.94f, 0.94f, 1f), "Choice" + (i + 1));
                 RectTransform rt = (RectTransform)button.transform;
                 rt.anchorMin = new Vector2(0.5f, 0.5f);

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Davidmon.Core;
 using Davidmon.Creatures;
+using Davidmon.Inventory;
 using Davidmon.Player;
 
 namespace Davidmon.World
@@ -319,11 +320,15 @@ namespace Davidmon.World
             GameEvents.RaiseEnemyDefeated(EnemyId);
 
             int exp = 15 + _instance.Level * 10;
+            long coins = 8 + _instance.Level * 5L;
             GameEvents.RaiseShowNotification(
-                _data.DisplayName + " (Lv." + _instance.Level + ") defeated! +" + exp + " Exp");
+                _data.DisplayName + " (Lv." + _instance.Level + ") defeated! +" + exp + " Exp, +" + coins + " coins");
 
             var pm = ServiceLocator.Get<PlayerManager>();
             if (pm != null) pm.AddExperienceToActive(exp);
+
+            var wallet = ServiceLocator.GetOrCreate(() => new Wallet());
+            wallet.AddCoins(coins);
 
             StartCoroutine(RespawnAfter(12f));
         }

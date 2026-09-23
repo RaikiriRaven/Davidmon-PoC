@@ -65,5 +65,24 @@ namespace Davidmon.Inventory
                     yield return new KeyValuePair<ItemData, int>(data, pair.Value);
             }
         }
+
+        /// <summary>
+        /// Rebuilds the inventory wholesale (save/load). Unknown item ids are dropped.
+        /// Raises a single inventory-refresh channel once done.
+        /// </summary>
+        public void RestoreAll(IEnumerable<KeyValuePair<string, int>> stacks)
+        {
+            _items.Clear();
+            if (stacks != null)
+            {
+                foreach (KeyValuePair<string, int> stack in stacks)
+                {
+                    if (string.IsNullOrEmpty(stack.Key) || stack.Value <= 0) continue;
+                    if (ItemRegistry.Find(stack.Key) == null) continue;
+                    _items[stack.Key] = stack.Value;
+                }
+            }
+            GameEvents.RaiseInventoryChanged();
+        }
     }
 }

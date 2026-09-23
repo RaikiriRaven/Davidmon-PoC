@@ -1,3 +1,4 @@
+using System;
 using Davidmon.Core;
 
 namespace Davidmon.Inventory
@@ -33,6 +34,14 @@ namespace Davidmon.Inventory
             _coins -= amount;
             GameEvents.RaiseCurrencyChanged(old, _coins);
             return true;
+        }
+
+        /// <summary>Restores the balance directly (save/load). Raises the currency channel.</summary>
+        public void SetCoins(long amount)
+        {
+            long old = _coins;
+            _coins = Math.Max(0L, amount);
+            GameEvents.RaiseCurrencyChanged(old, _coins);
         }
     }
 }

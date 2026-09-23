@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using Davidmon.Core;
 using Davidmon.Creatures;
 using Davidmon.Player;
+using Davidmon.Save;
 
 namespace Davidmon.UI
 {
@@ -51,6 +52,14 @@ namespace Davidmon.UI
             catalog = ResolveCatalog();
             BuildScreen();
             Hide();
+
+            // A real save file takes priority over the starter picker: the
+            // SaveManager rehydrates the saved creature, wallet and inventory.
+            if (SaveManager.HasSave)
+            {
+                GameEvents.RaiseShowNotification("Continuing saved game...");
+                return;
+            }
 
             if (PlayerPrefs.HasKey(SaveKey))
             {

@@ -59,6 +59,16 @@ namespace Davidmon.Player
             GameEvents.RaiseCreatureSelected(data.CreatureId);
         }
 
+        /// <summary>Restores a pre-built creature instance (save/load), keeping its progression.</summary>
+        public void LoadCreature(CreatureInstance instance)
+        {
+            if (instance == null) return;
+            ActiveCreature = instance;
+            if (instance.Data != null) avatar?.SetCreature(instance.Data);
+            GameEvents.RaiseCreatureSelected(instance.Data != null ? instance.Data.CreatureId : "");
+            RaiseHpChanged();
+        }
+
         /// <summary>Replaces the active creature after evolution, preserving its progression.</summary>
         public void EvolveTo(CreatureData newSpecies)
         {

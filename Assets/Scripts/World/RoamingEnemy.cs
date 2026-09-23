@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using Davidmon.Combat;
 using Davidmon.Core;
 using Davidmon.Creatures;
 using Davidmon.Inventory;
@@ -15,7 +16,7 @@ namespace Davidmon.World
     /// the <see cref="EnemyRegistry"/> and shows a world-space HP bar overhead.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class RoamingEnemy : MonoBehaviour, IInteractable
+    public sealed class RoamingEnemy : MonoBehaviour, IInteractable, IEnemyTarget
     {
         [SerializeField] private string creatureId;
         [SerializeField] private int level = 1;
@@ -26,6 +27,11 @@ namespace Davidmon.World
         [SerializeField] private float pauseSeconds = 1.1f;
         [SerializeField] private float leashRange = 30f;
         [SerializeField] private float contactDamageCooldown = 1f;
+
+        [Header("Ranged Attack")]
+        [SerializeField] private float shotRange = 22f;
+        [SerializeField] private float shootCooldown = 4f;
+        [SerializeField] private float telegraphDuration = 0.45f;
 
         private CreatureData _data;
         private CreatureInstance _instance;
@@ -52,12 +58,17 @@ namespace Davidmon.World
         private GameObject _hpBarRoot;
         private Image _hpFill;
 
+        private float _shotCooldownTimer;
+        private float _telegraphTimer;
+        private bool _telegraphing;
+
         public string EnemyId => gameObject.name;
         public CreatureData Data => _data;
         public CreatureInstance Instance => _instance;
         public int Level => _instance != null ? _instance.Level : level;
         public bool IsPlayerInRange => _playerInRange;
         public bool IsAlive => !_dead && _instance != null && _instance.CurrentHp > 0;
+        public bool IsAggro => _aggro;
         public int Defense => _instance != null ? _instance.Defense : 0;
         public Vector3 Position => transform.position;
 
@@ -197,27 +208,49 @@ namespace Davidmon.World
             float distToPlayer = _player != null ? Vector3.Distance(transform.position, _player.position) : float.MaxValue;
             _playerInRange = _player != null && distToPlayer <= detectionRadius;
 
-            // ---- combat: aggro chase + contact damage ----
+            // ---- combat: aggro chase, ranged bolt, contact damage ----
             if (_aggro && _player != null)
             {
                 if (distToPlayer > leashRange)
                 {
                     _aggro = false;
+                    _telegraphing = false;
                     _target = _home;
+                }
+                else if (_telegraphing)
+                {
+                    FacePlayer();
+                    PulseWindUp();
+                    _telegraphTimer -= Time.deltaTime;
+                    if (_telegraphTimer <= 0f)
+                    {
+                        _telegraphing = false;
+                        FireBolt();
+                    }
                 }
                 else if (distToPlayer > 1.25f)
                 {
-                    Vector3 chaseDir = _player.position - transform.position;
-                    chaseDir.y = 0f;
-                    Vector3 dir = chaseDir.sqrMagnitude > 0.001f ? chaseDir.normalized : Vector3.zero;
-
-                    float step = moveSpeed * 1.75f * Time.deltaTime;
-                    if (dir.sqrMagnitude > 0f && !WouldCollide(dir, step + 0.2f))
+                    _shotCooldownTimer -= Time.deltaTime;
+                    if (distToPlayer <= shotRange && _shotCooldownTimer <= 0f)
                     {
-                        transform.position += dir * step;
-                        transform.position = new Vector3(transform.position.x, _home.y, transform.position.z);
-                        _yaw = Mathf.LerpAngle(_yaw, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 12f * Time.deltaTime);
-                        transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+                        _shotCooldownTimer = shootCooldown;
+                        _telegraphing = true;
+                        _telegraphTimer = telegraphDuration;
+                    }
+                    else
+                    {
+                        Vector3 chaseDir = _player.position - transform.position;
+                        chaseDir.y = 0f;
+                        Vector3 dir = chaseDir.sqrMagnitude > 0.001f ? chaseDir.normalized : Vector3.zero;
+
+                        float step = moveSpeed * 1.75f * Time.deltaTime;
+                        if (dir.sqrMagnitude > 0f && !WouldCollide(dir, step + 0.2f))
+                        {
+                            transform.position += dir * step;
+                            transform.position = new Vector3(transform.position.x, _home.y, transform.position.z);
+                            _yaw = Mathf.LerpAngle(_yaw, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 12f * Time.deltaTime);
+                            transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+                        }
                     }
                 }
                 else
@@ -227,6 +260,7 @@ namespace Davidmon.World
                     {
                         _contactTimer = 0f;
                         var pm = ServiceLocator.Get<PlayerManager>();
+                        if (pm == null) pm = UnityEngine.Object.FindFirstObjectByType<PlayerManager>();
                         if (pm != null)
                         {
                             int dmg = Mathf.Max(1, 4 + _instance.Level);
@@ -238,6 +272,7 @@ namespace Davidmon.World
                 return;
             }
             _contactTimer = 0f;
+            _telegraphing = false;
 
             // ---- roaming ----
             if (_paused)
@@ -313,6 +348,8 @@ namespace Davidmon.World
         {
             _dead = true;
             _aggro = false;
+            _telegraphing = false;
+            RestoreBaseColors();
             if (_hpBarRoot != null) _hpBarRoot.SetActive(false);
             if (_visualRoot != null) _visualRoot.gameObject.SetActive(false);
 
@@ -353,6 +390,47 @@ namespace Davidmon.World
             if (!CanInteract) return;
             _aggro = true;
             GameEvents.RaiseEnemyEngaged(EnemyId);
+        }
+
+        private void FacePlayer()
+        {
+            if (_player == null) return;
+            Vector3 to = _player.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.0001f)
+            {
+                _yaw = Mathf.LerpAngle(_yaw, Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, 16f * Time.deltaTime);
+                transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+            }
+        }
+
+        /// <summary>Pulses the creature's colours toward its element while winding up a shot.</summary>
+        private void PulseWindUp()
+        {
+            if (_renderers.Length == 0) return;
+            Color bright = CombatFx.ElementColor(_data != null ? _data.Element : ElementType.Neutral);
+            float pulse = 0.5f + 0.35f * Mathf.Sin(Time.time * 28f);
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                if (_renderers[i] == null) continue;
+                Material m = _renderers[i].material;
+                Color c = Color.Lerp(_rendererBaseColors[i], bright, pulse);
+                if (m.HasProperty("_Color")) m.color = c;
+                if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            }
+        }
+
+        private void FireBolt()
+        {
+            RestoreBaseColors();
+            if (_player == null || _instance == null || !IsAlive) return;
+
+            Vector3 origin = transform.position + Vector3.up * 1.3f;
+            Vector3 target = _player.position + Vector3.up * 0.9f;
+            Vector3 dir = (target - origin).normalized;
+            int damage = Mathf.Max(1, 3 + _instance.Level * 2);
+            EnemyBolt.Launch(origin, dir, 13f, 0.22f, damage,
+                CombatFx.ElementColor(_data != null ? _data.Element : ElementType.Neutral), transform);
         }
 
         private void FlashHit()

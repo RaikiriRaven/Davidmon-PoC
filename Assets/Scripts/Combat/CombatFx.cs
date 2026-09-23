@@ -124,6 +124,31 @@ namespace Davidmon.Combat
             fx.life = 0.9f;
         }
 
+        /// <summary>Floating red number shown when the player itself takes damage.</summary>
+        public static void SpawnIncomingDamageNumber(Vector3 worldPos, int amount)
+        {
+            EnsureFxRunner();
+
+            var go = new GameObject("IncomingDamageNumber", typeof(RectTransform), typeof(Text));
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.SetParent(_fxCanvas.transform, false);
+            rt.sizeDelta = new Vector2(160f, 40f);
+
+            Text label = go.GetComponent<Text>();
+            label.font = UIFactory.Font();
+            label.alignment = TextAnchor.MiddleCenter;
+            label.fontSize = 24;
+            label.fontStyle = FontStyle.Bold;
+            label.color = new Color(1f, 0.30f, 0.25f, 1f);
+            label.text = Mathf.Abs(amount).ToString();
+            label.raycastTarget = false;
+
+            var fx = go.AddComponent<DamageNumber>();
+            fx.targetWorldPos = worldPos;
+            fx.age = 0f;
+            fx.life = 0.9f;
+        }
+
         private sealed class ImpactFlash : MonoBehaviour
         {
             public Color color;

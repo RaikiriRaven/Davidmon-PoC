@@ -15,14 +15,14 @@ namespace Davidmon.Combat
     public sealed class AbilityProjectile : MonoBehaviour
     {
         private Vector3 _velocity;
-        private Func<RoamingEnemy, int> _resolveDamage;
+        private Func<IEnemyTarget, int> _resolveDamage;
         private float _radius;
         private float _age;
         private float _maxLife = 6f;
         private Transform _player;
 
         public static AbilityProjectile Launch(Vector3 origin, Vector3 direction, float speed,
-            Func<RoamingEnemy, int> resolveDamage, float blastRadius, Color tint)
+            Func<IEnemyTarget, int> resolveDamage, float blastRadius, Color tint)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = "AbilityBolt";
@@ -76,24 +76,24 @@ namespace Davidmon.Combat
 
             for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
             {
-                RoamingEnemy enemy = EnemyRegistry.All[i];
+                IEnemyTarget enemy = EnemyRegistry.All[i];
                 if (enemy == null) continue;
                 if (!enemy.IsAlive) continue;
-                if ((enemy.transform.position - transform.position).sqrMagnitude <= _radius * _radius)
+                if ((enemy.Position - transform.position).sqrMagnitude <= _radius * _radius)
                 {
-                    Explode(enemy.transform.position + Vector3.up * 0.6f);
+                    Explode(enemy.Position + Vector3.up * 0.6f);
                     ApplyTo(enemy);
                     return;
                 }
             }
         }
 
-        private void ApplyTo(RoamingEnemy enemy)
+        private void ApplyTo(IEnemyTarget enemy)
         {
             int damage = _resolveDamage != null ? _resolveDamage(enemy) : 1;
             enemy.TakeDamage(damage);
             if (damage > 0)
-                CombatFx.SpawnDamageNumber(enemy.transform.position + Vector3.up * 1.2f, damage);
+                CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);
         }
 
         private void Explode(Vector3 position)

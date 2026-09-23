@@ -136,14 +136,14 @@ namespace Davidmon.Combat
             Color tint = CombatFx.ElementColor(ability.Element);
             for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
             {
-                RoamingEnemy enemy = EnemyRegistry.All[i];
+                IEnemyTarget enemy = EnemyRegistry.All[i];
                 if (enemy == null || !enemy.IsAlive) continue;
-                Vector3 d = enemy.transform.position - center;
+                Vector3 d = enemy.Position - center;
                 d.y = 0f;
                 if (d.sqrMagnitude <= ability.Radius * ability.Radius)
                 {
                     ApplyDamage(enemy, ability);
-                    CombatFx.SpawnImpact(enemy.transform.position + Vector3.up * 0.6f, tint);
+                    CombatFx.SpawnImpact(enemy.Position + Vector3.up * 0.6f, tint);
                 }
             }
         }
@@ -153,10 +153,10 @@ namespace Davidmon.Combat
             Color tint = CombatFx.ElementColor(ability.Element);
             for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
             {
-                RoamingEnemy enemy = EnemyRegistry.All[i];
+                IEnemyTarget enemy = EnemyRegistry.All[i];
                 if (enemy == null || !enemy.IsAlive) continue;
 
-                Vector3 toEnemy = enemy.transform.position - origin;
+                Vector3 toEnemy = enemy.Position - origin;
                 float distance = toEnemy.magnitude;
                 if (distance > ability.Range) continue;
 
@@ -164,7 +164,7 @@ namespace Davidmon.Combat
                 if (angle > 50f) continue;
 
                 ApplyDamage(enemy, ability);
-                CombatFx.SpawnImpact(enemy.transform.position + Vector3.up * 0.6f, tint);
+                CombatFx.SpawnImpact(enemy.Position + Vector3.up * 0.6f, tint);
             }
         }
 
@@ -184,12 +184,12 @@ namespace Davidmon.Combat
                 }
             }
 
-            RoamingEnemy hitEnemy = null;
+            IEnemyTarget hitEnemy = null;
             for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
             {
-                RoamingEnemy enemy = EnemyRegistry.All[i];
+                IEnemyTarget enemy = EnemyRegistry.All[i];
                 if (enemy == null || !enemy.IsAlive) continue;
-                Vector3 toEnemy = enemy.transform.position - origin;
+                Vector3 toEnemy = enemy.Position - origin;
                 float squared = toEnemy.sqrMagnitude;
                 if (squared > range * range) continue;
 
@@ -210,22 +210,22 @@ namespace Davidmon.Combat
             if (hitEnemy != null)
             {
                 ApplyDamage(hitEnemy, ability);
-                CombatFx.SpawnImpact(hitEnemy.transform.position + Vector3.up * 0.6f, tint);
+                CombatFx.SpawnImpact(hitEnemy.Position + Vector3.up * 0.6f, tint);
             }
         }
 
         private void ProjectileAttack(Vector3 origin, Vector3 dir, AbilityData ability)
         {
-            RoamingEnemy best = null;
+            IEnemyTarget best = null;
             float bestProjected = float.MaxValue;
             float range = ability.Range;
 
             for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
             {
-                RoamingEnemy enemy = EnemyRegistry.All[i];
+                IEnemyTarget enemy = EnemyRegistry.All[i];
                 if (enemy == null || !enemy.IsAlive) continue;
 
-                Vector3 toEnemy = enemy.transform.position - origin;
+                Vector3 toEnemy = enemy.Position - origin;
                 float projected = Vector3.Dot(toEnemy, dir);
                 if (projected <= 0f || projected > range) continue;
 
@@ -243,7 +243,7 @@ namespace Davidmon.Combat
             Vector3 spawn = origin + dir * 0.5f;
             if (best != null)
             {
-                Vector3 target = best.transform.position + Vector3.up * 0.6f;
+                Vector3 target = best.Position + Vector3.up * 0.6f;
                 aimDir = (target - spawn).normalized;
             }
             else
@@ -255,15 +255,15 @@ namespace Davidmon.Combat
                 e => ResolveDamage(ability, e), ability.Radius, CombatFx.ElementColor(ability.Element));
         }
 
-        private void ApplyDamage(RoamingEnemy enemy, AbilityData ability)
+        private void ApplyDamage(IEnemyTarget enemy, AbilityData ability)
         {
             int damage = ResolveDamage(ability, enemy);
             enemy.TakeDamage(damage);
             if (damage > 0)
-                CombatFx.SpawnDamageNumber(enemy.transform.position + Vector3.up * 1.2f, damage);
+                CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);
         }
 
-        private int ResolveDamage(AbilityData ability, RoamingEnemy enemy)
+        private int ResolveDamage(AbilityData ability, IEnemyTarget enemy)
         {
             if (_pm == null || !_pm.HasCreature) return ability.BasePower;
             CreatureInstance attacker = _pm.ActiveCreature;

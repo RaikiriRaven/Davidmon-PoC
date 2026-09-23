@@ -83,13 +83,13 @@ namespace Davidmon.Player
 
         private void ApplyGravityAndMove(float deltaTime)
         {
-            if (!_controller.isGrounded || _verticalVelocity < 0f)
+            if (_verticalVelocity >= 0f)
             {
                 _verticalVelocity += gravity * deltaTime;
             }
-            else if (_verticalVelocity < 0f)
+            else
             {
-                _verticalVelocity = -2f;
+                _verticalVelocity = _controller.isGrounded ? -2f : _verticalVelocity + gravity * deltaTime;
             }
 
             _moveVelocity = _movePlan;

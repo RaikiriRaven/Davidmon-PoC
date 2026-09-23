@@ -27,6 +27,7 @@ namespace Davidmon.Player
 
         private void OnEnable()
         {
+            ServiceLocator.Register(this);
             GameEvents.CreatureEvolved += OnCreatureEvolved;
             GameEvents.CreatureSelected += OnCreatureSelected;
         }
@@ -39,7 +40,8 @@ namespace Davidmon.Player
 
         private void OnDestroy()
         {
-            ServiceLocator.Unregister<PlayerManager>();
+            if (ServiceLocator.Get<PlayerManager>() == this)
+                ServiceLocator.Unregister<PlayerManager>();
         }
 
         /// <summary>Spawns a fresh creature of the given species at the given level.</summary>

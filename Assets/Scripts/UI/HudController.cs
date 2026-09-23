@@ -6,6 +6,7 @@ using Davidmon.Core;
 using Davidmon.Creatures;
 using Davidmon.Inventory;
 using Davidmon.Player;
+using Davidmon.World;
 
 namespace Davidmon.UI
 {
@@ -46,6 +47,13 @@ namespace Davidmon.UI
         private static readonly Color SlotReadyColor = new Color(0.16f, 0.20f, 0.28f, 0.92f);
         private static readonly Color SlotSelectedColor = new Color(0.85f, 0.72f, 0.30f, 1f);
         private static readonly Color CdOverlayColor = new Color(0f, 0f, 0f, 0.62f);
+
+        private Image _reticle;
+        private GameObject _targetRoot;
+        private Text _targetName;
+        private Text _targetSub;
+        private Image _targetFill;
+        private static readonly Color TargetHpColor = new Color(0.85f, 0.25f, 0.25f, 0.95f);
 
         private void Awake()
         {
@@ -96,6 +104,8 @@ namespace Davidmon.UI
             Image expBg = CreateBar(panel, new Vector2(408f, 22f), new Vector2(16f, -100f), 0.62f, ExpFillColor, out _expFill, out _expText);
 
             BuildAbilityBar(canvas.transform);
+            BuildReticle(canvas.transform);
+            BuildTargetPanel(canvas.transform);
         }
 
         private void OnEnable()
@@ -149,6 +159,7 @@ namespace Davidmon.UI
         private void Update()
         {
             RefreshAbilityBar();
+            RefreshTargetPanel();
         }
 
         private void BuildAbilityBar(Transform canvas)
@@ -255,6 +266,121 @@ namespace Davidmon.UI
                 cdRt.offsetMax = Vector2.zero;
                 _slotCds[i].color = cdReady ? new Color(0f, 0f, 0f, 0f) : CdOverlayColor;
             }
+        }
+
+        private void BuildReticle(Transform canvas)
+        {
+            var go = new GameObject("AimReticle", typeof(RectTransform), typeof(Image));
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.SetParent(canvas, false);
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(6f, 6f);
+            _reticle = go.GetComponent<Image>();
+            _reticle.sprite = UIFactory.WhiteSprite();
+            _reticle.color = new Color(1f, 1f, 1f, 0.55f);
+            _reticle.raycastTarget = false;
+        }
+
+        private void BuildTargetPanel(Transform canvas)
+        {
+            RectTransform panel = UIFactory.CreatePanel(canvas,
+                new Vector2(0f, 0f), new Vector2(0f, 0f), 0f, 0f, PanelColor);
+            panel.name = "TargetPanel";
+            panel.anchorMin = Vector2.zero;
+            panel.anchorMax = Vector2.zero;
+            panel.pivot = new Vector2(0f, 0f);
+            panel.anchoredPosition = new Vector2(24f, 272f);
+            panel.sizeDelta = new Vector2(280f, 92f);
+            SetRaycastTarget(panel.gameObject, false);
+            _targetRoot = panel.gameObject;
+
+            _targetName = UIFactory.CreateText(panel, "", 22, TitleColor,
+                TextAnchor.UpperLeft, FontStyle.Bold, "TargetName");
+            _targetName.rectTransform.anchorMin = new Vector2(0f, 1f);
+            _targetName.rectTransform.anchorMax = new Vector2(1f, 1f);
+            _targetName.rectTransform.pivot = new Vector2(0f, 1f);
+            _targetName.rectTransform.anchoredPosition = new Vector2(12f, -8f);
+            _targetName.rectTransform.sizeDelta = Vector2.zero;
+            _targetName.raycastTarget = false;
+
+            _targetSub = UIFactory.CreateText(panel, "", 15, MutedColor,
+                TextAnchor.UpperLeft, FontStyle.Normal, "TargetSub");
+            _targetSub.rectTransform.anchorMin = new Vector2(0f, 1f);
+            _targetSub.rectTransform.anchorMax = new Vector2(1f, 1f);
+            _targetSub.rectTransform.pivot = new Vector2(0f, 1f);
+            _targetSub.rectTransform.anchoredPosition = new Vector2(12f, -34f);
+            _targetSub.rectTransform.sizeDelta = Vector2.zero;
+            _targetSub.raycastTarget = false;
+
+            CreateBar(panel, new Vector2(256f, 16f), new Vector2(12f, -62f), 0f, TargetHpColor,
+                out _targetFill, out Text unusedLabel);
+            _targetRoot.SetActive(false);
+        }
+
+        private void RefreshTargetPanel()
+        {
+            if (_targetRoot == null) return;
+            RoamingEnemy target = PickTarget();
+            if (target == null || target.Data == null || target.Instance == null)
+            {
+                if (_targetRoot.activeSelf) _targetRoot.SetActive(false);
+                return;
+            }
+
+            if (!_targetRoot.activeSelf) _targetRoot.SetActive(true);
+            _targetName.text = target.Data.DisplayName;
+            _targetSub.text = target.Data.Element + "  \u00b7  Lv." + target.Level;
+
+            float frac = target.Instance.MaxHp > 0 ? (float)target.Instance.CurrentHp / target.Instance.MaxHp : 0f;
+            RectTransform rt = _targetFill.rectTransform;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = new Vector2(Mathf.Clamp01(frac), 1f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>
+        /// Picks the combat target to display: aggro'd enemies first, then the enemy
+        /// nearest the camera's forward direction within range.
+        /// </summary>
+        private RoamingEnemy PickTarget()
+        {
+            Camera cam = Camera.main;
+            if (cam == null) return null;
+            Transform camT = cam.transform;
+            Vector3 camPos = camT.position;
+            Vector3 camFwd = camT.forward;
+
+            const float maxRange = 20f;
+            const float maxAngle = 75f;
+            RoamingEnemy best = null;
+            float bestScore = float.MaxValue;
+
+            for (int i = EnemyRegistry.All.Count - 1; i >= 0; i--)
+            {
+                RoamingEnemy enemy = EnemyRegistry.All[i] as RoamingEnemy;
+                if (enemy == null || !enemy.IsAlive) continue;
+
+                Vector3 toEnemy = enemy.Position - camPos;
+                float sqr = toEnemy.sqrMagnitude;
+                if (sqr > maxRange * maxRange) continue;
+                toEnemy = toEnemy.normalized;
+                float angle = Vector3.Angle(camFwd, toEnemy);
+                if (angle > maxAngle) continue;
+
+                float score = angle + Mathf.Sqrt(sqr) * 0.4f
+                    - (enemy.IsAggro ? 30f : 0f)
+                    - (enemy.IsPlayerInRange ? 15f : 0f);
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = enemy;
+                }
+            }
+            return best;
         }
 
         private void Refresh()

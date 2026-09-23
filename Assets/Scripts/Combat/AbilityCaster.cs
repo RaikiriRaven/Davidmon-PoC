@@ -88,6 +88,11 @@ namespace Davidmon.Combat
 
         private void OnAbilityPressed(int slotIndex)
         {
+            // Ignore selection while any modal UI (chat, menus, free cursor) is
+            // open — the gameplay map stays enabled under those, so stray key
+            // presses must not change the combat selection.
+            if (_input != null && !_input.MovementEnabled) return;
+
             if (slotIndex < 0 || slotIndex >= AbilityCount) return;
             SelectedIndex = slotIndex;
             GameEvents.RaiseAbilitySelected(slotIndex);
@@ -95,6 +100,11 @@ namespace Davidmon.Combat
 
         private void OnAttackPressed()
         {
+            // The Attack action fires on every left-click. Gate it on the same
+            // movement lock the menus/chat use, otherwise one stray click casts
+            // the selected ability while UI is up.
+            if (_input != null && !_input.MovementEnabled) return;
+
             if (_pm == null || _pm.IsFainted) return;
 
             var list = Abilities;

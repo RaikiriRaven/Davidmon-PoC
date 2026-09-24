@@ -91,6 +91,13 @@ namespace Davidmon.Combat
         private void ApplyTo(IEnemyTarget enemy)
         {
             int damage = _resolveDamage != null ? _resolveDamage(enemy) : 1;
+            // Online: server owns HP; route as a request (mirror via broadcast).
+            if (Davidmon.Multiplayer.ServerApi.IsOnline && enemy is Component c && c != null)
+            {
+                Davidmon.Multiplayer.ServerApi.RequestEnemyDamage(c.gameObject.name, damage);
+                CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);
+                return;
+            }
             enemy.TakeDamage(damage);
             if (damage > 0)
                 CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);

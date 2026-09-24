@@ -268,6 +268,14 @@ namespace Davidmon.Combat
         private void ApplyDamage(IEnemyTarget enemy, AbilityData ability)
         {
             int damage = ResolveDamage(ability, enemy);
+            // Online: server owns enemy HP (shared kills). Send the damage as a
+            // request; the result arrives via EnemyHpBroadcast. FX stays local.
+            if (Davidmon.Multiplayer.ServerApi.IsOnline && enemy is Component c && c != null)
+            {
+                Davidmon.Multiplayer.ServerApi.RequestEnemyDamage(c.gameObject.name, damage);
+                CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);
+                return;
+            }
             enemy.TakeDamage(damage);
             if (damage > 0)
                 CombatFx.SpawnDamageNumber(enemy.Position + Vector3.up * 1.2f, damage);

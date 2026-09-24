@@ -39,6 +39,7 @@ namespace Davidmon.UI
 
         private const int AbilitySlots = 4;
         private AbilityCaster _caster;
+        private PlayerInputProvider _trackedLocal;
         private Image[] _slotBgs = new Image[AbilitySlots];
         private Image[] _slotCds = new Image[AbilitySlots];
         private Text[] _slotNums = new Text[AbilitySlots];
@@ -158,8 +159,27 @@ namespace Davidmon.UI
 
         private void Update()
         {
+            // Multiplayer: the locally controlled avatar changes on Host/Client
+            // (scene player parked, fresh avatar owns progression). Cached scene
+            // references would freeze the HUD — re-follow ownership on change.
+            if (PlayerInputProvider.Local != _trackedLocal)
+            {
+                _trackedLocal = PlayerInputProvider.Local;
+                ResolveRefs();
+                Refresh();
+            }
             RefreshAbilityBar();
             RefreshTargetPanel();
+        }
+
+        /// <summary>Re-points HUD bindings at the locally controlled avatar.</summary>
+        private void ResolveRefs()
+        {
+            PlayerManager localPm = Davidmon.Multiplayer.PlayerLookup.LocalManager();
+            if (localPm != null) playerManager = localPm;
+            AbilityCaster localCaster = Davidmon.Multiplayer.PlayerLookup.LocalCaster();
+            if (localCaster != null) _caster = localCaster;
+            if (playerManager == null) playerManager = ServiceLocator.Get<PlayerManager>();
         }
 
         private void BuildAbilityBar(Transform canvas)
@@ -234,7 +254,8 @@ namespace Davidmon.UI
         {
             if (_caster == null)
             {
-                _caster = ServiceLocator.Get<AbilityCaster>();
+                // Prefer the locally controlled avatar (multiplayer-safe).
+                _caster = Davidmon.Multiplayer.PlayerLookup.LocalCaster();
                 if (_caster == null)
                 {
                     var pm = ServiceLocator.Get<PlayerManager>();
@@ -411,6 +432,9 @@ namespace Davidmon.UI
 
         private CreatureInstance CurrentInstance()
         {
+            // Prefer the locally controlled avatar (multiplayer-safe).
+            PlayerManager localPm = Davidmon.Multiplayer.PlayerLookup.LocalManager();
+            if (localPm != null && localPm.HasCreature) return localPm.ActiveCreature;
             PlayerManager pm = playerManager != null ? playerManager : ServiceLocator.Get<PlayerManager>();
             return pm != null && pm.HasCreature ? pm.ActiveCreature : null;
         }

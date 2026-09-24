@@ -209,7 +209,8 @@ namespace Davidmon.UI
         private void CreateCard(EvolutionStage stage, int index, int count)
         {
             CreatureInstance inst = ActiveInstance();
-            bool unlocked = inst != null && _playerManager != null && _playerManager.IsEvolutionUnlocked(stage);
+            PlayerManager effective = EffectiveManager();
+            bool unlocked = inst != null && effective != null && effective.IsEvolutionUnlocked(stage);
             CreatureData target = stage.nextCreature;
             string targetName = target != null ? target.DisplayName : "Unknown";
 
@@ -249,8 +250,33 @@ namespace Davidmon.UI
         private void Evolve(EvolutionStage stage)
         {
             if (_busy || stage == null || stage.nextCreature == null) return;
-            if (_playerManager == null || !_playerManager.IsEvolutionUnlocked(stage)) return;
+            if (EffectiveManager() == null || !EffectiveManager().IsEvolutionUnlocked(stage)) return;
+            // Online: server validates requirements (TryEvolve); the new species
+            // arrives via CreatureId mirror. Never apply EvolveTo locally online.
+            if (Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                StartCoroutine(RunEvolutionOnline(stage.nextCreature));
+                return;
+            }
             StartCoroutine(RunEvolution(stage.nextCreature));
+        }
+
+        /// <summary>Online evolution: flash, request, then refresh from the mirror.</summary>
+        private IEnumerator RunEvolutionOnline(CreatureData next)
+        {
+            _busy = true;
+            SetButtonsInteractable(false);
+
+            _flash.gameObject.SetActive(true);
+            yield return FadeFlash(1f, 0.18f);
+            Davidmon.Multiplayer.ServerApi.RequestEvolve(next.CreatureId);
+            yield return FadeFlash(0f, 0.35f);
+            _flash.gameObject.SetActive(false);
+
+            _busy = false;
+            SetButtonsInteractable(true);
+            RefreshHeader();
+            Rebuild();
         }
 
         private IEnumerator RunEvolution(CreatureData next)
@@ -260,7 +286,7 @@ namespace Davidmon.UI
 
             _flash.gameObject.SetActive(true);
             yield return FadeFlash(1f, 0.18f);
-            _playerManager.EvolveTo(next);
+            EffectiveManager()?.EvolveTo(next);
             yield return FadeFlash(0f, 0.35f);
             _flash.gameObject.SetActive(false);
 
@@ -291,9 +317,20 @@ namespace Davidmon.UI
 
         private CreatureInstance ActiveInstance()
         {
-            if (_playerManager != null && _playerManager.HasCreature) return _playerManager.ActiveCreature;
+            // Prefer the locally controlled avatar (multiplayer-safe).
+            PlayerManager effective = EffectiveManager();
+            if (effective != null && effective.HasCreature) return effective.ActiveCreature;
             PlayerManager pm = ServiceLocator.Get<PlayerManager>();
             return pm != null && pm.HasCreature ? pm.ActiveCreature : null;
+        }
+
+        /// <summary>Locally controlled manager (multiplayer-safe), scene fallback.</summary>
+        private PlayerManager EffectiveManager()
+        {
+            PlayerManager local = Davidmon.Multiplayer.PlayerLookup.LocalManager();
+            if (local != null) return local;
+            if (_playerManager != null) return _playerManager;
+            return ServiceLocator.Get<PlayerManager>();
         }
 
         private void OnExpGained(int creatureId, long gained, long total)

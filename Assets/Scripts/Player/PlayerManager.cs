@@ -73,6 +73,9 @@ namespace Davidmon.Player
         public void EvolveTo(CreatureData newSpecies)
         {
             if (ActiveCreature == null || newSpecies == null) return;
+            // Online: species changes are server-authoritative (TryEvolve mirror).
+            // Local EvolveTo would desync; EvolutionUI routes via RequestEvolve.
+            if (Davidmon.Multiplayer.ServerApi.IsOnline) return;
             string fromName = ActiveCreature.Data != null ? ActiveCreature.Data.DisplayName : "Protoform";
             ActiveCreature.Evolve(newSpecies);
             avatar?.SetCreature(newSpecies);
@@ -120,6 +123,13 @@ namespace Davidmon.Player
         public void TakeDamageToActive(int amount)
         {
             if (ActiveCreature == null || amount <= 0) return;
+            // Online: damage is a server-validated request; the result arrives
+            // via AuthHp/AuthMaxHp mirror (ApplyServerHp). No local mutation.
+            if (Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                Davidmon.Multiplayer.ServerApi.RequestDamage("enemy", amount);
+                return;
+            }
             int before = ActiveCreature.CurrentHp;
             ActiveCreature.TakeDamage(amount);
             RaiseHpChanged();
@@ -132,7 +142,38 @@ namespace Davidmon.Player
         public void HealActiveToFull()
         {
             if (ActiveCreature == null) return;
+            // Online: heal is server-authoritative (healer NPC).
+            if (Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                Davidmon.Multiplayer.ServerApi.RequestHeal();
+                return;
+            }
             ActiveCreature.HealToFull();
+            RaiseHpChanged();
+        }
+
+        /// <summary>
+        /// Applies the server-authoritative HP mirror. Raises the same HUD event
+        /// as local damage and starts the local revive ticker only as a fallback
+        /// (the server owns the real revive timer via ProcessRevives).
+        /// </summary>
+        public void ApplyServerHp(int hp, int maxHp)
+        {
+            if (ActiveCreature == null) return;
+            int clampedMax = Mathf.Max(1, maxHp);
+            // Max may have changed (level-up/evolution): rebuild stats first by
+            // re-applying level/exp, then set absolute HP.
+            if (ActiveCreature.MaxHp != clampedMax)
+            {
+                int pct = clampedMax > 0
+                    ? Mathf.Clamp(Mathf.RoundToInt((float)Mathf.Max(0, hp) / clampedMax * 100f), 0, 100)
+                    : 100;
+                // pct==0 means fainted; LoadState treats 0 as full-heal, so use 1% floor
+                // then correct to 0 via SetCurrentHp below.
+                ActiveCreature.LoadState(ActiveCreature.Data, ActiveCreature.Level, ActiveCreature.Exp,
+                    Mathf.Max(1, pct));
+            }
+            ActiveCreature.SetCurrentHp(hp);
             RaiseHpChanged();
         }
 

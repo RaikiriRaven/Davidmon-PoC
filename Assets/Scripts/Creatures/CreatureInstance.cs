@@ -134,6 +134,12 @@ namespace Davidmon.Creatures
             currentHp = Mathf.Min(maxHp, currentHp + Mathf.Max(0, amount));
         }
 
+        /// <summary>Authoritative HP mirror (multiplayer). Clamps into [0, MaxHp].</summary>
+        public void SetCurrentHp(int hp)
+        {
+            currentHp = Mathf.Clamp(hp, 0, Mathf.Max(1, maxHp));
+        }
+
         /// <summary>
         /// Rebuilds the creature from serialized progression fields.
         /// Used by the save system to avoid running through exp arithmetic again.

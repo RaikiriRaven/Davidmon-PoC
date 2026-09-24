@@ -96,11 +96,11 @@ namespace Davidmon.World
 
         /// <summary>Spawns and initialises a boss without scene references.</summary>
         public static BossEnemy Spawn(CreatureData baseData, int bossLevel, Vector3 at,
-            string[] stageIds, Transform parent = null)
+            string[] stageIds, Transform parent = null, string serverId = null)
         {
             if (baseData == null) return null;
 
-            var go = new GameObject("Boss_" + baseData.CreatureId);
+            var go = new GameObject(string.IsNullOrEmpty(serverId) ? "Boss_" + baseData.CreatureId : serverId);
             BossEnemy boss = go.AddComponent<BossEnemy>();
             if (parent != null) go.transform.SetParent(parent, true);
             boss.Init(baseData, bossLevel, at, stageIds);
@@ -443,8 +443,13 @@ namespace Davidmon.World
             _aggro = true;
             FlashHit();
 
-            int hitExp = 4;
-            Davidmon.Multiplayer.ServerApi.AwardExp("combat", hitExp);
+            // Offline per-hit trickle. Online the server owns kill rewards;
+            // per-hit grants would be unverified client requests, so skip them.
+            if (!Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                int hitExp = 4;
+                Davidmon.Multiplayer.ServerApi.AwardExp("combat", hitExp);
+            }
 
             if (_instance.CurrentHp <= 0)
             {
@@ -458,6 +463,52 @@ namespace Davidmon.World
                 float frac = _instance.MaxHp > 0 ? (float)_instance.CurrentHp / _instance.MaxHp : 0f;
                 if (frac <= _thresholds[nextStage - 1])
                     StartCoroutine(DigivolveNextStage(nextStage));
+            }
+        }
+
+        /// <summary>
+        /// Server HP mirror (online). Absolute HP, no local rewards; thresholds
+        /// still drive the visual digi-evolution locally.
+        /// </summary>
+        public void ApplyServerHp(int hp, int maxHp, bool died)
+        {
+            if (_instance == null || _transforming) return;
+            if (!died && !_dead)
+            {
+                _instance.SetCurrentHp(hp);
+                _aggro = true;
+                FlashHit();
+
+                int nextStage = _stageIndex + 1;
+                if (nextStage < _thresholds.Length && _thresholds[nextStage - 1] > 0f)
+                {
+                    float frac = _instance.MaxHp > 0 ? (float)_instance.CurrentHp / _instance.MaxHp : 0f;
+                    if (frac <= _thresholds[nextStage - 1])
+                        StartCoroutine(DigivolveNextStage(nextStage));
+                }
+                return;
+            }
+            if (died && !_dead)
+            {
+                _instance.SetCurrentHp(0);
+                Die();
+                return;
+            }
+            if (!died && _dead)
+            {
+                // Server respawn broadcast.
+                _data = CreatureRegistry.Find(baseCreatureId);
+                if (_data == null) return;
+                _stageIndex = 0;
+                _damageMult = 1f;
+                _instance = new CreatureInstance(_data, level);
+                if (_visualRoot != null) Destroy(_visualRoot.gameObject);
+                BuildVisual();
+                transform.position = _home;
+                _yaw = 0f;
+                _aggro = false;
+                _dead = false;
+                GameEvents.RaiseEnemySpawned(EnemyId);
             }
         }
 
@@ -575,19 +626,23 @@ namespace Davidmon.World
             GameEvents.RaiseEnemyDefeated(EnemyId);
             GameEvents.RaiseBossDefeated();
 
-            int exp = 150 + _instance.Level * 25;
-            long coins = 400 + _instance.Level * 50L;
+            // Offline: client-computed rewards. Online: server computes them.
+            if (!Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                int exp = 150 + _instance.Level * 25;
+                long coins = 400 + _instance.Level * 50L;
 
-            // Rule 3: rewards are requests — the server validates and applies.
-            Davidmon.Multiplayer.ServerApi.AwardExp("boss", exp);
-            Davidmon.Multiplayer.ServerApi.AwardCoins("boss", coins);
+                // Rule 3: rewards are requests — the server validates and applies.
+                Davidmon.Multiplayer.ServerApi.AwardExp("boss", exp);
+                Davidmon.Multiplayer.ServerApi.AwardCoins("boss", coins);
 
-            GameEvents.RaiseShowLegendaryNotification(
-                "★ " + DisplayName + " defeated! +" + exp + " Exp, +" + coins + " coins");
+                GameEvents.RaiseShowLegendaryNotification(
+                    "★ " + DisplayName + " defeated! +" + exp + " Exp, +" + coins + " coins");
 
-            GrantBossRewards();
+                GrantBossRewards();
 
-            StartCoroutine(RespawnAfter(respawnSeconds));
+                StartCoroutine(RespawnAfter(respawnSeconds));
+            }
         }
 
         private void GrantBossRewards()
@@ -711,8 +766,8 @@ namespace Davidmon.World
             if (_playerRefreshTimer <= 0f)
             {
                 _playerRefreshTimer = 2.5f;
-                GameObject go = GameObject.FindGameObjectWithTag("Player");
-                _player = go != null ? go.transform : null;
+                // Multi-player: boss targets the nearest avatar (shared raid target).
+                _player = Davidmon.Multiplayer.PlayerLookup.NearestPlayer(transform.position);
             }
         }
 

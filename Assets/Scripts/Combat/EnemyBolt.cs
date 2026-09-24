@@ -64,7 +64,7 @@ namespace Davidmon.Combat
                     && !obstacle.collider.isTrigger
                     && !obstacle.collider.transform.IsChildOf(transform)
                     && !PartOf(_shooter, obstacle.collider.transform)
-                    && !PartOf(_player, obstacle.collider.transform);
+                    && !IsPlayerAvatar(obstacle.collider.transform);
                 if (valid)
                 {
                     CombatFx.SpawnImpact(obstacle.point, _tint);
@@ -75,7 +75,29 @@ namespace Davidmon.Combat
 
             transform.position += _velocity * Time.deltaTime;
 
-            if (_player != null)
+            // Multi-player: each client simulates its own bolts locally, so a bolt
+            // may only ever damage the OWNED player (remote hits are visual only —
+            // the remote owner's own simulation handles their damage). This keeps
+            // server damage requests attributable (one client, one victim).
+            if (Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                var players = UnityEngine.Object.FindObjectsByType<Davidmon.Multiplayer.NetworkPlayer>(
+                    FindObjectsInactive.Exclude);
+                for (int i = 0; i < players.Length; i++)
+                {
+                    var p = players[i];
+                    if (p == null || !p.IsOwner) continue;
+                    Vector3 chest = p.transform.position + Vector3.up * 0.9f;
+                    float reach = _radius + 0.5f;
+                    if ((chest - transform.position).sqrMagnitude <= reach * reach)
+                    {
+                        _player = p.transform;
+                        ApplyToPlayer();
+                        return;
+                    }
+                }
+            }
+            else if (_player != null)
             {
                 Vector3 chest = _player.position + Vector3.up * 0.9f;
                 float reach = _radius + 0.5f;
@@ -89,14 +111,19 @@ namespace Davidmon.Combat
         private void ResolvePlayer()
         {
             if (_player != null) return;
-            GameObject go = GameObject.FindGameObjectWithTag("Player");
-            _player = go != null ? go.transform : null;
+            // Multi-player: bolts track the nearest avatar, not an arbitrary one.
+            _player = Davidmon.Multiplayer.PlayerLookup.NearestPlayer(transform.position);
         }
 
         private static bool PartOf(Transform owner, Transform t)
         {
             if (owner == null) return false;
             return t.IsChildOf(owner) || owner.IsChildOf(t);
+        }
+
+        private bool IsPlayerAvatar(Transform t)
+        {
+            return Davidmon.Multiplayer.PlayerLookup.IsPlayerCollider(t);
         }
 
         private void ApplyToPlayer()

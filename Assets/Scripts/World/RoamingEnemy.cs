@@ -78,11 +78,11 @@ namespace Davidmon.World
         public bool CanInteract => IsAlive && _playerInRange;
 
         /// <summary>Spawns and initialises a roaming enemy without scene references.</summary>
-        public static RoamingEnemy Spawn(CreatureData data, int spawnLevel, Vector3 at, Transform parent = null)
+        public static RoamingEnemy Spawn(CreatureData data, int spawnLevel, Vector3 at, Transform parent = null, string serverId = null)
         {
             if (data == null) return null;
 
-            var go = new GameObject("Enemy_" + data.CreatureId);
+            var go = new GameObject(string.IsNullOrEmpty(serverId) ? "Enemy_" + data.CreatureId : serverId);
             RoamingEnemy enemy = go.AddComponent<RoamingEnemy>();
             if (parent != null) go.transform.SetParent(parent, true);
 
@@ -356,16 +356,55 @@ namespace Davidmon.World
             GameEvents.RaiseTargetDied(EnemyId);
             GameEvents.RaiseEnemyDefeated(EnemyId);
 
-            int exp = 15 + _instance.Level * 10;
-            long coins = 8 + _instance.Level * 5L;
-            GameEvents.RaiseShowNotification(
-                _data.DisplayName + " (Lv." + _instance.Level + ") defeated! +" + exp + " Exp, +" + coins + " coins");
+            // Offline: local rewards. Online: the server computes kill rewards
+            // (DamageEnemyById) and mirrors them; skip client-computed grants.
+            if (!Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                int exp = 15 + _instance.Level * 10;
+                long coins = 8 + _instance.Level * 5L;
+                GameEvents.RaiseShowNotification(
+                    _data.DisplayName + " (Lv." + _instance.Level + ") defeated! +" + exp + " Exp, +" + coins + " coins");
 
-            // Rule 3: rewards are requests — the server validates and applies.
-            Davidmon.Multiplayer.ServerApi.AwardExp("combat", exp);
-            Davidmon.Multiplayer.ServerApi.AwardCoins("combat", coins);
+                // Rule 3: rewards are requests — the server validates and applies.
+                Davidmon.Multiplayer.ServerApi.AwardExp("combat", exp);
+                Davidmon.Multiplayer.ServerApi.AwardCoins("combat", coins);
 
-            StartCoroutine(RespawnAfter(12f));
+                StartCoroutine(RespawnAfter(12f));
+            }
+        }
+
+        /// <summary>
+        /// Server HP mirror (online). Sets absolute HP without granting local
+        /// rewards; death/respawn visuals only — rewards arrive via SyncVars.
+        /// </summary>
+        public void ApplyServerHp(int hp, int maxHp, bool died)
+        {
+            if (_instance == null) return;
+            if (!died && !_dead)
+            {
+                _instance.SetCurrentHp(hp);
+                _aggro = true;
+                FlashHit();
+                return;
+            }
+            if (died && !_dead)
+            {
+                _instance.SetCurrentHp(0);
+                Die();
+                return;
+            }
+            if (!died && _dead)
+            {
+                // Server respawn broadcast: reset immediately (no local rewards).
+                _instance = new CreatureInstance(_data, level);
+                transform.position = _home;
+                _yaw = 0f;
+                _aggro = false;
+                _dead = false;
+                _contactTimer = 0f;
+                if (_visualRoot != null) _visualRoot.gameObject.SetActive(true);
+                GameEvents.RaiseEnemySpawned(EnemyId);
+            }
         }
 
         private IEnumerator RespawnAfter(float seconds)
@@ -497,8 +536,8 @@ namespace Davidmon.World
             if (_playerRefreshTimer <= 0f)
             {
                 _playerRefreshTimer = 3f;
-                GameObject go = GameObject.FindGameObjectWithTag("Player");
-                _player = go != null ? go.transform : null;
+                // Multi-player: nearest avatar (all connections replicate locally).
+                _player = Davidmon.Multiplayer.PlayerLookup.NearestPlayer(transform.position);
             }
         }
 

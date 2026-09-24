@@ -31,7 +31,16 @@ namespace Davidmon.World
                 return;
             }
 
-            BossEnemy.Spawn(data, Mathf.Max(1, level), position, evolutionStageIds, transform);
+            const string serverId = "boss_0";
+            BossEnemy.Spawn(data, Mathf.Max(1, level), position, evolutionStageIds, transform, serverId);
+
+            // Server owns boss HP (shared kill + server rewards via broadcast).
+            bool isServer = false;
+            try { isServer = FishNet.InstanceFinder.IsServerStarted; }
+            catch (System.Exception) { isServer = false; }
+            if (isServer && Davidmon.Multiplayer.ServerGameState.Instance != null)
+                Davidmon.Multiplayer.ServerGameState.Instance.EnsureEnemy(serverId,
+                    data.CreatureId, Mathf.Max(1, level), true, "leaf_boss_egg", position, 60f);
         }
     }
 }

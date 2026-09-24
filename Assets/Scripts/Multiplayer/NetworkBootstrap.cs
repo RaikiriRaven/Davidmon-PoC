@@ -48,6 +48,23 @@ namespace Davidmon.Multiplayer
 
         private NetworkManager _net;
         private GameObject _scenePlayer;
+
+        /// <summary>
+        /// Single-player snapshot stashed when the scene player is parked for a
+        /// network session. Fresh avatars spawn creature-less, so the owner sends
+        /// this (instead of its empty state) as the join-time baseline.
+        /// </summary>
+        public struct SceneSnapshot
+        {
+            public bool valid;
+            public string creatureId;
+            public int level;
+            public long exp;
+            public long coins;
+            public string invState;
+        }
+
+        public static SceneSnapshot LastSceneSnapshot;
         private Vector3 _spawnOrigin = Vector3.zero;
         private readonly HashSet<NetworkConnection> _spawned = new HashSet<NetworkConnection>();
         private readonly HashSet<int> _spawnedClientIds = new HashSet<int>();
@@ -116,6 +133,7 @@ namespace Davidmon.Multiplayer
             if (_net == null) return;
             _net.ServerManager.OnServerConnectionState += OnServerConnectionState;
             _net.ServerManager.OnRemoteConnectionState += OnRemoteConnectionState;
+            _net.ClientManager.OnClientConnectionState += OnClientConnectionState;
         }
 
         private void OnDisable()
@@ -123,6 +141,54 @@ namespace Davidmon.Multiplayer
             if (_net == null) return;
             _net.ServerManager.OnServerConnectionState -= OnServerConnectionState;
             _net.ServerManager.OnRemoteConnectionState -= OnRemoteConnectionState;
+            _net.ClientManager.OnClientConnectionState -= OnClientConnectionState;
+        }
+
+        /// <summary>
+        /// Copies the scene player's progression (selection/level/coins/inventory)
+        /// then parks it. Fresh network avatars spawn empty, so the owner replays
+        /// this stash as its join-time server baseline (session trust, once).
+        /// </summary>
+        private void StashAndParkScenePlayer()
+        {
+            LastSceneSnapshot = new SceneSnapshot();
+            if (_scenePlayer != null)
+            {
+                var pm = _scenePlayer.GetComponent<Davidmon.Player.PlayerManager>();
+                if (pm != null && pm.HasCreature && pm.ActiveCreature.Data != null)
+                {
+                    var wallet = Davidmon.Core.ServiceLocator.GetOrCreate(() => new Davidmon.Inventory.Wallet());
+                    LastSceneSnapshot = new SceneSnapshot
+                    {
+                        valid = true,
+                        creatureId = pm.ActiveCreature.Data.CreatureId,
+                        level = pm.ActiveCreature.Level,
+                        exp = pm.ActiveCreature.Exp,
+                        coins = wallet.Coins,
+                        invState = ServerApi.SnapshotInventory()
+                    };
+                }
+                _scenePlayer.SetActive(false);
+            }
+        }
+
+        private void OnClientConnectionState(ClientConnectionStateArgs args)
+        {
+            bool serverOn = _net != null && _net.ServerManager != null && _net.ServerManager.Started;
+            if (args.ConnectionState == LocalConnectionState.Started)
+            {
+                // Pure client (no local server): park the scene player like hosting
+                // does, otherwise it keeps driving alongside the network avatar.
+                // On a host the server handler already parked it — skip to avoid
+                // overwriting the stash with a parked (inactive) player.
+                if (!serverOn) StashAndParkScenePlayer();
+                EnemyNetwork.EnsureClientHandler();
+            }
+            else if (args.ConnectionState == LocalConnectionState.Stopped
+                || args.ConnectionState == LocalConnectionState.Stopping)
+            {
+                if (!serverOn && _scenePlayer != null) _scenePlayer.SetActive(true);
+            }
         }
 
         private void OnServerConnectionState(ServerConnectionStateArgs args)
@@ -130,10 +196,14 @@ namespace Davidmon.Multiplayer
             if (args.ConnectionState == LocalConnectionState.Started)
             {
                 RegisterChatRelay();
-                if (_scenePlayer != null) _scenePlayer.SetActive(false);
+                StashAndParkScenePlayer();
                 // Host edge: the local client may already be connected before any
                 // remote event fires — spawn for everyone currently connected.
                 SpawnForAllClients();
+                // Enemies spawn at scene load, before the server exists — register
+                // the deterministic ids ("roam_*", "boss_0") now that we own HP.
+                if (ServerGameState.Instance != null)
+                    ServerGameState.Instance.EnsureFromLocalScene();
             }
             else if (args.ConnectionState == LocalConnectionState.Stopped
                 || args.ConnectionState == LocalConnectionState.Stopping)

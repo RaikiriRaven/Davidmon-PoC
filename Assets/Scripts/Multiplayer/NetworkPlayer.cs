@@ -49,6 +49,12 @@ namespace Davidmon.Multiplayer
         /// <summary>Authoritative inventory as "id=count;..." (server only writes).</summary>
         public readonly SyncVar<string> InventoryState = new SyncVar<string>();
 
+        /// <summary>Authoritative current HP (server only writes).</summary>
+        public readonly SyncVar<int> AuthHp = new SyncVar<int>();
+
+        /// <summary>Authoritative max HP (server only writes).</summary>
+        public readonly SyncVar<int> AuthMaxHp = new SyncVar<int>();
+
         private ThirdPersonController _controller;
         private CharacterController _characterController;
         private PlayerInputProvider _input;
@@ -79,6 +85,8 @@ namespace Davidmon.Multiplayer
             AuthExp.OnChange += OnAuthExpChanged;
             AuthCoins.OnChange += OnAuthCoinsChanged;
             InventoryState.OnChange += OnInventoryStateChanged;
+            AuthHp.OnChange += OnAuthHpChanged;
+            AuthMaxHp.OnChange += OnAuthHpChanged;
         }
 
         private void OnDestroy()
@@ -89,6 +97,8 @@ namespace Davidmon.Multiplayer
             AuthExp.OnChange -= OnAuthExpChanged;
             AuthCoins.OnChange -= OnAuthCoinsChanged;
             InventoryState.OnChange -= OnInventoryStateChanged;
+            AuthHp.OnChange -= OnAuthHpChanged;
+            AuthMaxHp.OnChange -= OnAuthHpChanged;
 
             if (ServerApi.Local == this) ServerApi.Local = null;
             if (IsOwner)
@@ -108,6 +118,8 @@ namespace Davidmon.Multiplayer
         public override void OnStartClient()
         {
             base.OnStartClient();
+
+            EnemyNetwork.EnsureClientHandler();
 
             if (IsOwner)
             {
@@ -131,6 +143,7 @@ namespace Davidmon.Multiplayer
                 ApplyServerProgression();
                 ApplyServerCoins();
                 ApplyServerInventory();
+                ApplyServerHp();
             }
             else
             {
@@ -196,6 +209,11 @@ namespace Davidmon.Multiplayer
             if (IsOwner) ApplyServerInventory();
         }
 
+        private void OnAuthHpChanged(int prev, int next, bool asServer)
+        {
+            if (IsOwner) ApplyServerHp();
+        }
+
         /// <summary>
         /// Mirrors authoritative (level, exp) into the local creature, preserving
         /// HP ratio and raising the same notifications/events as a local level-up.
@@ -243,6 +261,26 @@ namespace Davidmon.Multiplayer
                     _avatar.SetCreature(species);
             }
             finally { _applyingServerState = false; }
+
+            ApplyServerHp();
+        }
+
+        /// <summary>Mirrors authoritative HP into the local creature + HUD.</summary>
+        private void ApplyServerHp()
+        {
+            if (!IsOwner || _applyingServerState || _manager == null || !_manager.HasCreature) return;
+            int hp = AuthHp.Value;
+            int maxHp = Mathf.Max(1, AuthMaxHp.Value);
+            // SyncVars default to 0 before the first server push; ignore until set.
+            if (maxHp <= 1 && hp <= 0) return;
+            _applyingServerState = true;
+            try
+            {
+                _manager.ApplyServerHp(hp, maxHp);
+                if (hp <= 0)
+                    GameEvents.RaiseShowNotification("Your creature fainted!");
+            }
+            finally { _applyingServerState = false; }
         }
 
         /// <summary>Mirrors the authoritative coin balance into the local wallet.</summary>
@@ -279,15 +317,27 @@ namespace Davidmon.Multiplayer
         private void OnLocalEvolved(string fromId, string toId) => PushCreatureToServer();
         private void OnLocalLevelUp(int creatureId, long newLevel, long maxHp) => PushCreatureToServer();
 
-        /// <summary>Sends the owner's snapshot (selection + baseline) to the server.</summary>
+        /// <summary>
+        /// Sends the owner's snapshot (selection + baseline) to the server.
+        /// Fresh avatars spawn creature-less, so when the local manager is empty
+        /// the stashed scene-player snapshot (captured at park time) is sent.
+        /// </summary>
         private void PushCreatureToServer()
         {
-            if (!IsOwner || _manager == null || !_manager.HasCreature) return;
-            CreatureData data = _manager.ActiveCreature.Data;
-            if (data == null) return;
-            Wallet wallet = ServiceLocator.GetOrCreate(() => new Wallet());
-            CmdSubmitCreature(data.CreatureId, _manager.ActiveCreature.Level,
-                _manager.ActiveCreature.Exp, wallet.Coins, ServerApi.SnapshotInventory());
+            if (!IsOwner) return;
+            if (_manager != null && _manager.HasCreature)
+            {
+                CreatureData data = _manager.ActiveCreature.Data;
+                if (data == null) return;
+                Wallet wallet = ServiceLocator.GetOrCreate(() => new Wallet());
+                CmdSubmitCreature(data.CreatureId, _manager.ActiveCreature.Level,
+                    _manager.ActiveCreature.Exp, wallet.Coins, ServerApi.SnapshotInventory());
+                return;
+            }
+            NetworkBootstrap.SceneSnapshot stash = NetworkBootstrap.LastSceneSnapshot;
+            if (stash.valid && !string.IsNullOrEmpty(stash.creatureId))
+                CmdSubmitCreature(stash.creatureId, Mathf.Max(1, stash.level),
+                    Math.Max(0L, stash.exp), Math.Max(0L, stash.coins), stash.invState ?? "");
         }
 
         /// <summary>
@@ -313,6 +363,7 @@ namespace Davidmon.Multiplayer
             {
                 CreatureLevel.Value = level;
                 AuthExp.Value = exp;
+                PushHpToSyncVars(Owner.ClientId);
             }
             else Debug.LogWarning("[Server] EXP denied for client " + Owner.ClientId + ": " + error);
         }
@@ -365,6 +416,86 @@ namespace Davidmon.Multiplayer
                 GameEvents.RaiseShowNotification(message);
         }
 
+        /// <summary>Client-reported damage intake. Server validates via DamagePlayer.</summary>
+        [ServerRpc]
+        public void CmdReportDamage(string source, int amount)
+        {
+            if (ServerGameState.Instance == null) return;
+            if (ServerGameState.Instance.DamagePlayer(Owner.ClientId, source ?? "enemy", amount,
+                out int hp, out int maxHp, out bool died, out string error))
+            {
+                PushHpToSyncVars(Owner.ClientId);
+                if (died) RpcNotice(Owner, "Your creature fainted!");
+            }
+            else Debug.LogWarning("[Server] Damage denied for client " + Owner.ClientId + ": " + error);
+        }
+
+        /// <summary>Full-heal request (healer NPC). Server validates via HealPlayer.</summary>
+        [ServerRpc]
+        public void CmdRequestHeal()
+        {
+            if (ServerGameState.Instance == null) return;
+            if (ServerGameState.Instance.HealPlayer(Owner.ClientId,
+                out int hp, out int maxHp, out string error))
+            {
+                PushHpToSyncVars(Owner.ClientId);
+                RpcNotice(Owner, "Your creature is fully restored!");
+            }
+            else RpcNotice(Owner, error ?? "Heal failed.");
+        }
+
+        /// <summary>Evolution request. Server validates requirements via TryEvolve.</summary>
+        [ServerRpc]
+        public void CmdRequestEvolve(string targetId)
+        {
+            if (ServerGameState.Instance == null) return;
+            if (ServerGameState.Instance.TryEvolve(Owner.ClientId, targetId ?? "",
+                out string error))
+            {
+                PushRecordToSyncVars(Owner.ClientId);
+                RpcNotice(Owner, "Evolution complete!");
+            }
+            else RpcNotice(Owner, error ?? "Evolution failed.");
+        }
+
+        /// <summary>
+        /// Player -&gt; enemy damage. Server owns HP; mirrors to all via broadcast.
+        /// Killer rewards are server-computed (DamageEnemyById grants to record).
+        /// </summary>
+        [ServerRpc]
+        public void CmdDamageEnemy(string enemyId, int amount)
+        {
+            if (ServerGameState.Instance == null) return;
+            if (ServerGameState.Instance.DamageEnemyById(Owner.ClientId, enemyId ?? "", amount,
+                out int hp, out int maxHp, out bool died,
+                out int rewardExp, out long rewardCoins, out string rewardItem, out string error))
+            {
+                try
+                {
+                    ServerManager.Broadcast(new EnemyHpBroadcast
+                    {
+                        EnemyId = enemyId,
+                        Hp = hp,
+                        MaxHp = maxHp,
+                        Died = died
+                    });
+                }
+                catch (Exception e) { Debug.LogWarning("[Server] Enemy broadcast failed: " + e.Message); }
+                // Killer rewards were granted directly to the record; push immediately
+                // (the periodic sync in ServerGameState.Update is the fallback).
+                ServerGameState.Record r = ServerGameState.Instance.GetOrCreate(Owner.ClientId);
+                CreatureLevel.Value = Mathf.Max(1, r.level);
+                AuthExp.Value = Math.Max(0L, r.exp);
+                AuthCoins.Value = Math.Max(0L, r.coins);
+                PushInventoryToSyncVars(Owner.ClientId);
+                PushHpToSyncVars(Owner.ClientId);
+                if (died)
+                    RpcNotice(Owner, "Enemy defeated! +" + rewardExp + " Exp, +" + rewardCoins + " coins"
+                        + (!string.IsNullOrEmpty(rewardItem) ? ", drop: " + rewardItem : ""));
+            }
+            else Debug.LogWarning("[Server] Enemy damage denied for client " + Owner.ClientId + ": " + error);
+        }
+
         private void PushRecordToSyncVars(int clientId)
         {
             if (ServerGameState.Instance == null) return;
@@ -374,6 +505,15 @@ namespace Davidmon.Multiplayer
             AuthExp.Value = Math.Max(0L, r.exp);
             AuthCoins.Value = Math.Max(0L, r.coins);
             PushInventoryToSyncVars(clientId);
+            PushHpToSyncVars(clientId);
+        }
+
+        private void PushHpToSyncVars(int clientId)
+        {
+            if (ServerGameState.Instance == null) return;
+            ServerGameState.Record r = ServerGameState.Instance.GetOrCreate(clientId);
+            AuthMaxHp.Value = Mathf.Max(1, ServerGameState.MaxHpFor(r.creatureId, r.level));
+            AuthHp.Value = Mathf.Clamp(r.currentHp, 0, AuthMaxHp.Value);
         }
 
         private void PushInventoryToSyncVars(int clientId)

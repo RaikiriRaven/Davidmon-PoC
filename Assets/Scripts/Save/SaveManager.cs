@@ -71,8 +71,7 @@ namespace Davidmon.Save
 
         private void Start()
         {
-            _pm = ServiceLocator.Get<PlayerManager>();
-            if (_pm == null) _pm = FindFirstObjectByType<PlayerManager>();
+            ResolveManager();
             if (HasSave) ApplyLoaded(_loaded);
         }
 
@@ -161,7 +160,7 @@ namespace Davidmon.Save
 
         public void SaveNow()
         {
-            if (_pm == null) _pm = ServiceLocator.Get<PlayerManager>();
+            ResolveManager();
 
             var data = new SaveData
             {
@@ -205,7 +204,7 @@ namespace Davidmon.Save
         private void ApplyLoaded(SaveData data)
         {
             if (data == null) return;
-            if (_pm == null) _pm = ServiceLocator.Get<PlayerManager>();
+            ResolveManager();
 
             var wallet = ServiceLocator.GetOrCreate(() => new Wallet());
             wallet.SetCoins(data.coins);
@@ -240,6 +239,17 @@ namespace Davidmon.Save
             }
 
             GameEvents.RaiseGameWorldReady();
+        }
+
+        /// <summary>
+        /// Prefers the locally controlled avatar (multiplayer-safe) so saves follow
+        /// the owned mirror instead of a parked scene player.
+        /// </summary>
+        private void ResolveManager()
+        {
+            _pm = Davidmon.Multiplayer.PlayerLookup.LocalManager();
+            if (_pm == null) _pm = ServiceLocator.Get<PlayerManager>();
+            if (_pm == null) _pm = FindFirstObjectByType<PlayerManager>();
         }
 
         private static void WriteToDisk(SaveData data)

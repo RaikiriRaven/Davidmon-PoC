@@ -54,6 +54,7 @@ namespace Davidmon.World
 
         public void SpawnConfigured()
         {
+            int idx = 0;
             foreach (SpawnEntry entry in spawns)
             {
                 if (string.IsNullOrEmpty(entry.creatureId)) continue;
@@ -63,7 +64,9 @@ namespace Davidmon.World
                     Debug.LogWarning("[RoamingEnemySpawner] Unknown creature id: " + entry.creatureId);
                     continue;
                 }
-                RoamingEnemy.Spawn(data, Mathf.Max(1, entry.level), entry.position, parent);
+                string serverId = "roam_" + idx++;
+                RoamingEnemy enemy = RoamingEnemy.Spawn(data, Mathf.Max(1, entry.level), entry.position, parent, serverId);
+                RegisterServerEnemy(serverId, data, entry.level, entry.position);
             }
         }
 
@@ -79,8 +82,26 @@ namespace Davidmon.World
                     continue;
                 }
                 Vector3 at = i < defaultPositions.Length ? defaultPositions[i] : new Vector3(0f, 0.5f, 0f);
-                RoamingEnemy.Spawn(data, Mathf.Max(1, defaultLevels[i]), at, parent);
+                string serverId = "roam_" + i;
+                RoamingEnemy.Spawn(data, Mathf.Max(1, defaultLevels[i]), at, parent, serverId);
+                RegisterServerEnemy(serverId, data, defaultLevels[i], at);
             }
+        }
+
+        /// <summary>
+        /// Registers the deterministic spawn in the server record table (server only).
+        /// Clients keep local visual copies; HP is mirrored via EnemyHpBroadcast.
+        /// </summary>
+        private void RegisterServerEnemy(string serverId, CreatureData data, int level, Vector3 at)
+        {
+            bool isServer = false;
+            try { isServer = FishNet.InstanceFinder.IsServerStarted; }
+            catch (Exception) { isServer = false; }
+            if (!isServer) return;
+            var state = Davidmon.Multiplayer.ServerGameState.Instance;
+            if (state == null) return;
+            state.EnsureEnemy(serverId, data != null ? data.CreatureId : "", Mathf.Max(1, level),
+                false, null, at, 12f);
         }
     }
 }

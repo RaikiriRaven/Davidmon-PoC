@@ -81,6 +81,51 @@ namespace Davidmon.Multiplayer
             Local.CmdBuyItem(itemId);
         }
 
+        /// <summary>Player damage intake (enemy bolts/contact/slam). Server validates.</summary>
+        public static void RequestDamage(string source, int amount)
+        {
+            if (amount <= 0) return;
+            if (!IsOnline)
+            {
+                // Offline: TakeDamageToActive takes the local path (no recursion:
+                // it only calls RequestDamage when IsOnline is true).
+                PlayerManager pmOff = ServiceLocator.Get<PlayerManager>();
+                if (pmOff != null) pmOff.TakeDamageToActive(amount);
+                return;
+            }
+            Local.CmdReportDamage(source ?? "enemy", amount);
+        }
+
+        /// <summary>Full heal (healer NPC). Server validates and mirrors HP.</summary>
+        public static void RequestHeal()
+        {
+            if (!IsOnline)
+            {
+                PlayerManager pm = ServiceLocator.Get<PlayerManager>();
+                if (pm != null) pm.HealActiveToFull();
+                return;
+            }
+            Local.CmdRequestHeal();
+        }
+
+        /// <summary>Evolution request. Server validates requirements.</summary>
+        public static void RequestEvolve(string targetId)
+        {
+            if (string.IsNullOrEmpty(targetId) || !IsOnline) return;
+            Local.CmdRequestEvolve(targetId);
+        }
+
+        /// <summary>
+        /// Player -&gt; enemy damage. Offline it applies locally; online the server owns
+        /// HP (DamageEnemyById) and mirrors the result via EnemyHpBroadcast.
+        /// </summary>
+        public static void RequestEnemyDamage(string enemyId, int amount)
+        {
+            if (string.IsNullOrEmpty(enemyId) || amount <= 0) return;
+            if (!IsOnline) return; // offline callers apply TakeDamage directly
+            Local.CmdDamageEnemy(enemyId, amount);
+        }
+
         /// <summary>Serializes the local mirror inventory for join-time adoption.</summary>
         public static string SnapshotInventory()
         {

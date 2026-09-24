@@ -69,6 +69,18 @@ namespace Davidmon.Multiplayer
         private bool _applyingServerState;
         private int _lastAuthLevel = -1;
 
+        /// <summary>
+        /// Settled mirror application. SyncVars replicate independently, so a fresh
+        /// snapshot arrives as staggered partial states (species first, level/exp/HP
+        /// later). Applying each instantly builds transient garbage: a Lv-1 creature,
+        /// a 0-HP "faint", even a zeroed wallet. Instead every change schedules one
+        /// apply 0.25s out, which runs only once the snapshot reads complete.
+        /// </summary>
+        private float _mirrorPendingAt = -1f;
+        private const float MirrorSettleSeconds = 0.25f;
+        private int _lastMirroredHp = -1;
+        private long _lastAuthExpMirror = -1;
+
         private void Awake()
         {
             _controller = GetComponent<ThirdPersonController>();
@@ -140,6 +152,8 @@ namespace Davidmon.Multiplayer
                 GameEvents.LevelUp += OnLocalLevelUp;
 
                 PushCreatureToServer();
+                SeedFromStash();
+                ApplySavedTransform();
                 ApplyServerProgression();
                 ApplyServerCoins();
                 ApplyServerInventory();
@@ -191,36 +205,38 @@ namespace Davidmon.Multiplayer
         private void OnLevelSyncChanged(int prev, int next, bool asServer)
         {
             if (!IsOwner) ApplyCreatureVisual(CreatureId.Value, next);
-            else ApplyServerProgression();
+            else ScheduleMirrorApply();
         }
 
         private void OnAuthExpChanged(long prev, long next, bool asServer)
         {
-            if (IsOwner) ApplyServerProgression();
+            if (IsOwner) ScheduleMirrorApply();
         }
 
         private void OnAuthCoinsChanged(long prev, long next, bool asServer)
         {
-            if (IsOwner) ApplyServerCoins();
+            if (IsOwner) ScheduleMirrorApply();
         }
 
         private void OnInventoryStateChanged(string prev, string next, bool asServer)
         {
-            if (IsOwner) ApplyServerInventory();
+            if (IsOwner) ScheduleMirrorApply();
         }
 
         private void OnAuthHpChanged(int prev, int next, bool asServer)
         {
-            if (IsOwner) ApplyServerHp();
+            if (IsOwner) ScheduleMirrorApply();
         }
 
         /// <summary>
         /// Mirrors authoritative (level, exp) into the local creature, preserving
         /// HP ratio and raising the same notifications/events as a local level-up.
+        /// Skipped until the snapshot reads complete (see <see cref="ScheduleMirrorApply"/>).
         /// </summary>
         private void ApplyServerProgression()
         {
             if (!IsOwner || _applyingServerState || _manager == null) return;
+            if (!IsSnapshotComplete()) return;
             CreatureData species = CreatureRegistry.Find(CreatureId.Value);
             if (species == null) return;
 
@@ -262,6 +278,13 @@ namespace Davidmon.Multiplayer
             }
             finally { _applyingServerState = false; }
 
+            // Mirror ticks (e.g. passive EXP) change progression without any local
+            // event — repaint UI the same way a local gain would, or bars freeze.
+            long prevMirrorExp = _lastAuthExpMirror;
+            _lastAuthExpMirror = exp;
+            if (prevMirrorExp >= 0 && exp != prevMirrorExp)
+                GameEvents.RaiseExpGained(0, exp - prevMirrorExp, exp);
+
             ApplyServerHp();
         }
 
@@ -269,6 +292,7 @@ namespace Davidmon.Multiplayer
         private void ApplyServerHp()
         {
             if (!IsOwner || _applyingServerState || _manager == null || !_manager.HasCreature) return;
+            if (!IsSnapshotComplete()) return;
             int hp = AuthHp.Value;
             int maxHp = Mathf.Max(1, AuthMaxHp.Value);
             // SyncVars default to 0 before the first server push; ignore until set.
@@ -277,25 +301,72 @@ namespace Davidmon.Multiplayer
             try
             {
                 _manager.ApplyServerHp(hp, maxHp);
-                if (hp <= 0)
+                // Toast only on a real alive -> fainted transition, never on join
+                // or re-application of an already-fainted state.
+                if (hp <= 0 && _lastMirroredHp > 0)
                     GameEvents.RaiseShowNotification("Your creature fainted!");
+                _lastMirroredHp = hp;
             }
             finally { _applyingServerState = false; }
         }
 
-        /// <summary>Mirrors the authoritative coin balance into the local wallet.</summary>
+        /// <summary>Schedules one settled mirror apply (see _mirrorPendingAt).</summary>
+        private void ScheduleMirrorApply()
+        {
+            if (!IsOwner) return;
+            _mirrorPendingAt = Time.time + MirrorSettleSeconds;
+        }
+
+        /// <summary>
+        /// True once the server snapshot has fully arrived. The server always writes
+        /// CreatureLevel >= 1 and AuthMaxHp >= 1, so 0/empty means "not replicated
+        /// yet" rather than a real value.
+        /// </summary>
+        private bool IsSnapshotComplete()
+        {
+            return !string.IsNullOrEmpty(CreatureId.Value)
+                && CreatureLevel.Value >= 1
+                && AuthMaxHp.Value >= 1;
+        }
+
+        private void Update()
+        {
+            if (!IsOwner || _mirrorPendingAt < 0f || Time.time < _mirrorPendingAt) return;
+            _mirrorPendingAt = -1f;
+            if (!IsSnapshotComplete())
+            {
+                // Stragglers still in flight — retry shortly.
+                _mirrorPendingAt = Time.time + MirrorSettleSeconds;
+                return;
+            }
+            ApplyServerProgression();
+            ApplyServerHp();
+            ApplyServerCoins();
+            ApplyServerInventory();
+        }
+
+        /// <summary>
+        /// Mirrors the authoritative coin balance into the local wallet. Gated on
+        /// snapshot completeness so a default 0 never wipes pre-join coins
+        /// (which would also dirty a bad autosave).
+        /// </summary>
         private void ApplyServerCoins()
         {
             if (!IsOwner || _applyingServerState) return;
+            if (!IsSnapshotComplete()) return;
             Wallet wallet = ServiceLocator.GetOrCreate(() => new Wallet());
             if (wallet.Coins != AuthCoins.Value)
                 wallet.SetCoins(AuthCoins.Value);
         }
 
-        /// <summary>Mirrors the authoritative inventory into the local inventory.</summary>
+        /// <summary>
+        /// Mirrors the authoritative inventory into the local inventory. Gated on
+        /// snapshot completeness so a default empty state never wipes pre-join items.
+        /// </summary>
         private void ApplyServerInventory()
         {
             if (!IsOwner || _applyingServerState) return;
+            if (!IsSnapshotComplete()) return;
             PlayerInventory inventory = ServiceLocator.GetOrCreate(() => new PlayerInventory());
             inventory.RestoreAll(ServerGameState.ParseInventory(InventoryState.Value));
         }
@@ -316,6 +387,54 @@ namespace Davidmon.Multiplayer
         private void OnLocalProgressionChanged(string creatureId) => PushCreatureToServer();
         private void OnLocalEvolved(string fromId, string toId) => PushCreatureToServer();
         private void OnLocalLevelUp(int creatureId, long newLevel, long maxHp) => PushCreatureToServer();
+
+        /// <summary>
+        /// Instant local seeding from the join snapshot. The authoritative mirror
+        /// needs a server round trip + settle (~1s of "No creature"), so display the
+        /// stashed scene-player state immediately: it is the same snapshot just sent
+        /// via CmdSubmitCreature, and the server adopts it verbatim (session trust),
+        /// so the mirror confirms flicker-free. Must run AFTER PushCreatureToServer
+        /// (which sends the stash while the manager is still empty); the re-push
+        /// triggered by SetCreature below is ignored server-side (baseline once-only).
+        /// </summary>
+        private void SeedFromStash()
+        {
+            if (!IsOwner || _manager == null || _manager.HasCreature) return;
+            NetworkBootstrap.SceneSnapshot stash = NetworkBootstrap.LastSceneSnapshot;
+            if (!stash.valid || string.IsNullOrEmpty(stash.creatureId)) return;
+            CreatureData species = CreatureRegistry.Find(stash.creatureId);
+            if (species == null) return;
+
+            _applyingServerState = true;
+            try
+            {
+                _manager.SetCreature(species, 1);
+                CreatureInstance active = _manager.ActiveCreature;
+                // Join state is full HP server-side (AdoptBaseline), so seed full.
+                if (active != null)
+                    active.LoadState(species, Mathf.Max(1, stash.level), Math.Max(0L, stash.exp), 100);
+                _manager.RaiseHpChanged();
+                if (_avatar != null && _avatar.CurrentData != species)
+                    _avatar.SetCreature(species);
+            }
+            finally { _applyingServerState = false; }
+        }
+
+        /// <summary>
+        /// Auto-loads the saved world position on join. Progression/coins/inventory
+        /// arrive via the server baseline; the transform is client-local (driven by
+        /// the owner and replicated out), so the owner simply resumes where the save
+        /// was written. Skipped for fresh games with no save on disk.
+        /// </summary>
+        private void ApplySavedTransform()
+        {
+            if (!IsOwner) return;
+            Vector3 pos;
+            float rotY;
+            if (!Davidmon.Save.SaveManager.TryGetSavedTransform(out pos, out rotY)) return;
+            transform.position = pos;
+            transform.rotation = Quaternion.Euler(0f, rotY, 0f);
+        }
 
         /// <summary>
         /// Sends the owner's snapshot (selection + baseline) to the server.

@@ -34,7 +34,7 @@ namespace Davidmon.Multiplayer
         [SerializeField] private ShopStock defaultStock;
 
         // ----- Validation policy -----
-        private static readonly string[] ExpSources = { "combat", "boss", "quest" };
+        private static readonly string[] ExpSources = { "combat", "boss", "quest", "passive" };
         private static readonly string[] CoinSources = { "combat", "boss", "quest" };
         private static readonly string[] ItemSources = { "boss", "quest" };
 
@@ -58,6 +58,7 @@ namespace Davidmon.Multiplayer
             public long coins;
             public int currentHp;
             public float reviveAt;
+            public float lastDamageAt = -100f;
             public readonly Dictionary<string, int> inventory = new Dictionary<string, int>();
             public bool baselineAdopted;
             public float windowStart;
@@ -307,6 +308,7 @@ namespace Davidmon.Multiplayer
             if (r.currentHp <= 0) { error = "Already fainted."; return false; }
 
             r.currentHp = Math.Max(0, r.currentHp - Math.Max(1, amount));
+            r.lastDamageAt = Time.time;
             hp = r.currentHp;
             died = hp <= 0;
             if (died) r.reviveAt = Time.time + ReviveSeconds;
@@ -332,6 +334,14 @@ namespace Davidmon.Multiplayer
         private readonly List<int> revived = new List<int>();
         private readonly List<string> _enemyRevived = new List<string>();
         private float _syncTimer;
+        private float _regenTimer;
+
+        /// <summary>Out-of-combat HP regen (server-authoritative mirror of the
+        /// single-player rule): 1.5% of max, rounded up, every 2 seconds after
+        /// 8.5s without damage. Fainted creatures are owned by the revive timer.</summary>
+        private const float RegenDelaySeconds = 8.5f;
+        private const float RegenTickSeconds = 2f;
+        private const float RegenPercent = 0.015f;
 
         private void Update()
         {
@@ -345,6 +355,26 @@ namespace Davidmon.Multiplayer
 
             revived.Clear();
             ProcessRevives();
+
+            // Passive HP regen sweep (2s cadence). Results ride the existing
+            // 0.5s SyncVar sync below — no extra push needed.
+            _regenTimer += Time.deltaTime;
+            if (_regenTimer >= RegenTickSeconds)
+            {
+                _regenTimer = 0f;
+                float now = Time.time;
+                foreach (KeyValuePair<int, Record> kvp in _records)
+                {
+                    Record r = kvp.Value;
+                    if (string.IsNullOrEmpty(r.creatureId)) continue;
+                    if (r.currentHp <= 0) continue; // faint/revive owns 0 HP
+                    int maxHp = MaxHpFor(r.creatureId, r.level);
+                    if (r.currentHp >= maxHp) continue;
+                    if (now - r.lastDamageAt < RegenDelaySeconds) continue;
+                    r.currentHp = Math.Min(maxHp, r.currentHp
+                        + Math.Max(1, Mathf.CeilToInt(maxHp * RegenPercent)));
+                }
+            }
 
             // Enemy respawns -> broadcast revived HP to all clients.
             _enemyRevived.Clear();

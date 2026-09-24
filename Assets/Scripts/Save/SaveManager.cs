@@ -13,10 +13,12 @@ namespace Davidmon.Save
     /// <summary>
     /// Milestone 11: JSON save/load to a file under Application.persistentDataPath.
     /// Stores coins, the inventory, the active creature's progression and the player's
-    /// world position. Saves on F5, loads on F9, autosaves on an interval once anything
+    /// world position. Saves on F5, autosaves on an interval once anything
     /// noteworthy changed, saves when a boss is dropped, and saves on quit so progress
     /// is never lost. The file is parsed in Awake so the starter-selection UI can gate
-    /// itself on <see cref="HasSave"/> before any Start runs.
+    /// itself on <see cref="HasSave"/> before any Start runs. There is no manual load:
+    /// the save auto-applies at scene start (offline) and again on network join
+    /// (avatar baseline + spawn position).
     /// </summary>
     public sealed class SaveManager : MonoBehaviour
     {
@@ -49,6 +51,7 @@ namespace Davidmon.Save
         {
             GameEvents.BossDefeated += OnBossDefeated;
             GameEvents.LevelUp += OnLevelUp;
+            GameEvents.CreatureHpChanged += OnHpChanged;
             GameEvents.ItemAdded += OnInventoryChanged;
             GameEvents.ItemRemoved += OnInventoryChanged;
             GameEvents.CurrencyChanged += OnWalletChanged;
@@ -58,6 +61,7 @@ namespace Davidmon.Save
         {
             GameEvents.BossDefeated -= OnBossDefeated;
             GameEvents.LevelUp -= OnLevelUp;
+            GameEvents.CreatureHpChanged -= OnHpChanged;
             GameEvents.ItemAdded -= OnInventoryChanged;
             GameEvents.ItemRemoved -= OnInventoryChanged;
             GameEvents.CurrencyChanged -= OnWalletChanged;
@@ -85,10 +89,6 @@ namespace Davidmon.Save
                     SaveNow();
                     GameEvents.RaiseShowNotification("Game saved.");
                 }
-                else if (keyboard[Key.F9].wasPressedThisFrame)
-                {
-                    QuickLoad();
-                }
             }
 
             if (!_dirty) return;
@@ -115,6 +115,7 @@ namespace Davidmon.Save
 
         private void OnBossDefeated(string _) => SaveNow();
         private void OnLevelUp(int _a, long _b, long _c) => MarkDirty();
+        private void OnHpChanged(int _hp, int _maxHp) => MarkDirty();
         private void OnInventoryChanged(string _id, int _count) => MarkDirty();
         private void OnWalletChanged(long _old, long _new) => MarkDirty();
 
@@ -129,19 +130,6 @@ namespace Davidmon.Save
         {
             bool ok = TrySave();
             GameEvents.RaiseShowNotification(ok ? "Game saved." : "Save failed.");
-        }
-
-        public void QuickLoad()
-        {
-            SaveData data = ReadFromDisk();
-            if (data == null)
-            {
-                GameEvents.RaiseShowNotification("No save file found.");
-                return;
-            }
-            _loaded = data;
-            ApplyLoaded(data);
-            GameEvents.RaiseShowNotification("Save loaded.");
         }
 
         private bool TrySave()
@@ -162,6 +150,10 @@ namespace Davidmon.Save
         {
             ResolveManager();
 
+            // Never persist a parked/inactive avatar (e.g. teardown ordering on
+            // quit while hosting): its progression is stale next to the mirror.
+            bool pmUsable = _pm != null && _pm.gameObject.activeInHierarchy;
+
             var data = new SaveData
             {
                 version = Version,
@@ -169,7 +161,7 @@ namespace Davidmon.Save
                 coins = ServiceLocator.GetOrCreate(() => new Wallet()).Coins
             };
 
-            if (_pm != null && _pm.HasCreature)
+            if (pmUsable && _pm.HasCreature)
             {
                 CreatureInstance c = _pm.ActiveCreature;
                 data.activeCreature = new CreatureSave
@@ -187,12 +179,21 @@ namespace Davidmon.Save
             foreach (KeyValuePair<string, int> stack in inventory.Items)
                 data.inventory.Add(new ItemStackSave { itemId = stack.Key, count = stack.Value });
 
-            if (_pm != null)
+            if (pmUsable)
             {
                 data.posX = _pm.transform.position.x;
                 data.posY = _pm.transform.position.y;
                 data.posZ = _pm.transform.position.z;
                 data.rotY = _pm.transform.eulerAngles.y;
+            }
+            else if (_loaded != null)
+            {
+                // Keep the last known good transform instead of zeroing it.
+                data.posX = _loaded.posX;
+                data.posY = _loaded.posY;
+                data.posZ = _loaded.posZ;
+                data.rotY = _loaded.rotY;
+                if (data.activeCreature == null) data.activeCreature = _loaded.activeCreature;
             }
 
             WriteToDisk(data);
@@ -256,8 +257,26 @@ namespace Davidmon.Save
         {
             string json = JsonUtility.ToJson(data, true);
             File.WriteAllText(TempPath, json);
-            if (File.Exists(SavePath)) File.Delete(SavePath);
-            File.Move(TempPath, SavePath);
+            // Copy-overwrite (not delete+move): a crash mid-write keeps the last
+            // good save instead of losing everything.
+            File.Copy(TempPath, SavePath, true);
+            try { File.Delete(TempPath); } catch (Exception) { }
+        }
+
+        /// <summary>
+        /// Reads the saved world transform fresh from disk (for network join).
+        /// Returns false when there is no save or no meaningful position stored.
+        /// </summary>
+        public static bool TryGetSavedTransform(out Vector3 position, out float rotY)
+        {
+            position = Vector3.zero;
+            rotY = 0f;
+            SaveData data = ReadFromDisk();
+            if (data == null) return false;
+            position = new Vector3(data.posX, data.posY, data.posZ);
+            if (position.sqrMagnitude <= 0.0001f) return false;
+            rotY = data.rotY;
+            return true;
         }
 
         private static SaveData ReadFromDisk()

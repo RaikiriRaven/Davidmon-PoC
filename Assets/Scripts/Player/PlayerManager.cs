@@ -14,6 +14,19 @@ namespace Davidmon.Player
     {
         [SerializeField] private PlayerAvatar avatar;
 
+        /// <summary>Passive EXP trickle: small gain granted on an interval.</summary>
+        private const float PassiveTickSeconds = 1.5f;
+        private const long PassiveExpPerTick = 2L;
+        private float _passiveTimer;
+
+        /// <summary>Out-of-combat HP regen: 1.5% of max (rounded up, min 1) every
+        /// 2 seconds once no damage was taken for <see cref="RegenDelaySeconds"/>.</summary>
+        private const float RegenDelaySeconds = 8.5f;
+        private const float RegenTickSeconds = 2f;
+        private const float RegenPercent = 0.015f;
+        private float _lastDamageTime = -100f;
+        private float _regenTimer;
+
         public CreatureInstance ActiveCreature { get; private set; }
         public bool HasCreature => ActiveCreature != null;
         public bool IsFainted => HasCreature && !ActiveCreature.IsAlive;
@@ -36,6 +49,44 @@ namespace Davidmon.Player
         {
             GameEvents.CreatureEvolved -= OnCreatureEvolved;
             GameEvents.CreatureSelected -= OnCreatureSelected;
+        }
+
+        private void Update()
+        {
+            // Passive EXP trickle (1.5s). Offline it applies locally; online it is
+            // a server-validated request ("passive" source) like any other reward,
+            // so clients can't forge amounts and parked avatars (inactive) skip it.
+            if (HasCreature && !ActiveCreature.IsMaxLevel)
+            {
+                _passiveTimer += Time.deltaTime;
+                if (_passiveTimer >= PassiveTickSeconds)
+                {
+                    _passiveTimer = 0f;
+                    if (Davidmon.Multiplayer.ServerApi.IsOnline)
+                        Davidmon.Multiplayer.ServerApi.AwardExp("passive", PassiveExpPerTick);
+                    else
+                        AddExperienceToActive(PassiveExpPerTick);
+                }
+            }
+
+            // Out-of-combat HP regen (offline only — online the server runs the
+            // same rule authoritatively and mirrors the result). Requires the
+            // creature to be alive; faint/revive owns the 0-HP case.
+            if (!HasCreature
+                || Davidmon.Multiplayer.ServerApi.IsOnline
+                || ActiveCreature.CurrentHp <= 0
+                || ActiveCreature.CurrentHp >= ActiveCreature.MaxHp
+                || Time.time - _lastDamageTime < RegenDelaySeconds)
+            {
+                _regenTimer = 0f;
+                return;
+            }
+            _regenTimer += Time.deltaTime;
+            if (_regenTimer < RegenTickSeconds) return;
+            _regenTimer = 0f;
+            int amount = Mathf.Max(1, Mathf.CeilToInt(ActiveCreature.MaxHp * RegenPercent));
+            ActiveCreature.Heal(amount);
+            RaiseHpChanged();
         }
 
         private void OnDestroy()
@@ -123,6 +174,7 @@ namespace Davidmon.Player
         public void TakeDamageToActive(int amount)
         {
             if (ActiveCreature == null || amount <= 0) return;
+            _lastDamageTime = Time.time;
             // Online: damage is a server-validated request; the result arrives
             // via AuthHp/AuthMaxHp mirror (ApplyServerHp). No local mutation.
             if (Davidmon.Multiplayer.ServerApi.IsOnline)

@@ -20,7 +20,6 @@ namespace Davidmon.UI
 
         private Wallet _wallet;
         private PlayerInventory _inventory;
-        private PlayerInputProvider _input;
 
         private GameObject _root;
         private RectTransform _rowsRoot;
@@ -50,7 +49,6 @@ namespace Davidmon.UI
         {
             _wallet = ServiceLocator.GetOrCreate(() => new Wallet());
             _inventory = ServiceLocator.GetOrCreate(() => new PlayerInventory());
-            _input = FindAnyObjectByType<PlayerInputProvider>();
             if (stock == null) stock = LoadStockFromEditor();
             Build();
             if (_root != null) _root.SetActive(false);
@@ -161,7 +159,7 @@ namespace Davidmon.UI
         {
             EnsureBuilt();
             _root.SetActive(true);
-            _input?.SetMovementLocked(true);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(true);
             Core.CursorManager.Current?.RequestModal();
             Refresh();
         }
@@ -175,7 +173,7 @@ namespace Davidmon.UI
         {
             if (_root == null) return;
             _root.SetActive(false);
-            _input?.SetMovementLocked(false);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(false);
             Core.CursorManager.Current?.ReleaseModal();
         }
 
@@ -290,6 +288,14 @@ namespace Davidmon.UI
             if (_wallet.Coins < price)
             {
                 GameEvents.RaiseShowNotification("Not enough coins for " + item.DisplayName + " (" + price + " needed).");
+                return;
+            }
+
+            // Rule 3: online purchases are server-validated requests (price, funds,
+            // stock re-checked server-side; receipt arrives as a notice).
+            if (Davidmon.Multiplayer.ServerApi.IsOnline)
+            {
+                Davidmon.Multiplayer.ServerApi.RequestPurchase(item.ItemId);
                 return;
             }
 

@@ -29,7 +29,6 @@ namespace Davidmon.UI
         private readonly Dictionary<ElementType, Sprite> _iconCache = new Dictionary<ElementType, Sprite>();
 
         private PlayerManager _playerManager;
-        private PlayerInputProvider _input;
         private GameObject _panelRoot;
         private RectTransform _cardsRoot;
         private Text _headerText;
@@ -43,7 +42,6 @@ namespace Davidmon.UI
         {
             _playerManager = ServiceLocator.Get<PlayerManager>();
             if (_playerManager == null) _playerManager = FindAnyObjectByType<PlayerManager>();
-            _input = FindAnyObjectByType<PlayerInputProvider>();
 
             UIFactory.EnsureEventSystem();
             Build();
@@ -122,7 +120,7 @@ namespace Davidmon.UI
         private void OpenPanel()
         {
             _panelRoot.SetActive(true);
-            _input?.SetMovementLocked(true);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(true);
             Core.CursorManager.Current?.RequestModal();
             RefreshHeader();
             Rebuild();
@@ -132,7 +130,7 @@ namespace Davidmon.UI
         {
             if (_busy) return;
             _panelRoot.SetActive(false);
-            _input?.SetMovementLocked(false);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(false);
             Core.CursorManager.Current?.ReleaseModal();
         }
 

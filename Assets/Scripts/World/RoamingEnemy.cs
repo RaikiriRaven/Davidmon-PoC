@@ -361,11 +361,9 @@ namespace Davidmon.World
             GameEvents.RaiseShowNotification(
                 _data.DisplayName + " (Lv." + _instance.Level + ") defeated! +" + exp + " Exp, +" + coins + " coins");
 
-            var pm = ServiceLocator.Get<PlayerManager>();
-            if (pm != null) pm.AddExperienceToActive(exp);
-
-            var wallet = ServiceLocator.GetOrCreate(() => new Wallet());
-            wallet.AddCoins(coins);
+            // Rule 3: rewards are requests — the server validates and applies.
+            Davidmon.Multiplayer.ServerApi.AwardExp("combat", exp);
+            Davidmon.Multiplayer.ServerApi.AwardCoins("combat", coins);
 
             StartCoroutine(RespawnAfter(12f));
         }

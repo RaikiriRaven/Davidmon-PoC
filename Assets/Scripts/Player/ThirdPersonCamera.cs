@@ -40,7 +40,23 @@ namespace Davidmon.Player
 
         private void Awake()
         {
-            if (input == null) input = FindAnyObjectByType<PlayerInputProvider>();
+            if (input == null) input = PlayerInputProvider.LocalOrAny();
+        }
+
+        private void OnEnable()
+        {
+            PlayerInputProvider.LocalChanged += OnLocalInputChanged;
+        }
+
+        private void OnDisable()
+        {
+            PlayerInputProvider.LocalChanged -= OnLocalInputChanged;
+        }
+
+        /// <summary>Follows input ownership (multiplayer spawn/parking).</summary>
+        private void OnLocalInputChanged(PlayerInputProvider local)
+        {
+            input = local ?? PlayerInputProvider.LocalOrAny();
         }
 
         private void Start()

@@ -50,6 +50,7 @@ namespace Davidmon.Core
 
         private void OnEnable()
         {
+            PlayerInputProvider.LocalChanged += OnLocalInputChanged;
             EnsureSubscribed();
         }
 
@@ -60,8 +61,17 @@ namespace Davidmon.Core
 
         private void OnDisable()
         {
+            PlayerInputProvider.LocalChanged -= OnLocalInputChanged;
             Unsubscribe();
             if (Instance == this) ServiceLocator.Unregister<CursorManager>();
+        }
+
+        /// <summary>Follows input ownership (multiplayer spawn/parking).</summary>
+        private void OnLocalInputChanged(PlayerInputProvider local)
+        {
+            Unsubscribe();
+            _input = null;
+            if (isActiveAndEnabled) EnsureSubscribed();
         }
 
         private void OnDestroy()
@@ -72,7 +82,7 @@ namespace Davidmon.Core
         private void EnsureSubscribed()
         {
             if (_subscribed) return;
-            if (_input == null) _input = ServiceLocator.Get<PlayerInputProvider>() ?? FindAnyObjectByType<PlayerInputProvider>();
+            if (_input == null) _input = ServiceLocator.Get<PlayerInputProvider>() ?? PlayerInputProvider.LocalOrAny();
             if (_input != null && _input.EscapeMenu != null)
             {
                 _input.EscapeMenu.performed += OnEscape;

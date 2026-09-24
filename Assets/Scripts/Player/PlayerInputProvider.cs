@@ -29,6 +29,38 @@ namespace Davidmon.Player
         /// <summary>The four ability-selection actions (keys 1–4). Index 0 maps to ability slot 1.</summary>
         public InputAction[] Abilities { get; private set; }
 
+        /// <summary>
+        /// The locally controlled player's input. Set by the scene player on load
+        /// and claimed by the owned <c>NetworkPlayer</c> in multiplayer, so UI
+        /// screens always lock/read the local avatar instead of a remote copy.
+        /// Fires <see cref="LocalChanged"/> whenever ownership moves.
+        /// </summary>
+        public static PlayerInputProvider Local
+        {
+            get => _local;
+            set
+            {
+                if (_local == value) return;
+                _local = value;
+                if (_local != null)
+                {
+                    try { LocalChanged?.Invoke(_local); }
+                    catch (Exception e) { Debug.LogWarning("[PlayerInputProvider] LocalChanged failed: " + e.Message); }
+                }
+            }
+        }
+        private static PlayerInputProvider _local;
+
+        /// <summary>Raised when the locally controlled input moves to another player object (e.g. multiplayer spawn).</summary>
+        public static event Action<PlayerInputProvider> LocalChanged;
+
+        /// <summary>Local provider when known, otherwise any provider in the scene.</summary>
+        public static PlayerInputProvider LocalOrAny()
+        {
+            if (Local != null) return Local;
+            return FindAnyObjectByType<PlayerInputProvider>();
+        }
+
         /// <summary>True when character movement/jump should respond to input.</summary>
         public bool MovementEnabled => _gameplay != null && !_movementLocked;
 
@@ -46,6 +78,7 @@ namespace Davidmon.Player
 
         private void Awake()
         {
+            if (Local == null) Local = this;
             if (inputAsset == null)
             {
                 Debug.LogError("[PlayerInputProvider] No InputActionAsset assigned.", this);
@@ -99,6 +132,11 @@ namespace Davidmon.Player
         public void SetMovementLocked(bool locked)
         {
             _movementLocked = locked;
+        }
+
+        private void OnDestroy()
+        {
+            if (Local == this) Local = null;
         }
 
         private void OnInteractPerformed(InputAction.CallbackContext context)

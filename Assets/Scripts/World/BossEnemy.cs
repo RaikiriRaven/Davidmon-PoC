@@ -444,9 +444,7 @@ namespace Davidmon.World
             FlashHit();
 
             int hitExp = 4;
-            var pm = ServiceLocator.Get<PlayerManager>();
-            if (pm == null) pm = FindFirstObjectByType<PlayerManager>();
-            if (pm != null) pm.AddExperienceToActive(hitExp);
+            Davidmon.Multiplayer.ServerApi.AwardExp("combat", hitExp);
 
             if (_instance.CurrentHp <= 0)
             {
@@ -580,12 +578,9 @@ namespace Davidmon.World
             int exp = 150 + _instance.Level * 25;
             long coins = 400 + _instance.Level * 50L;
 
-            var pm = ServiceLocator.Get<PlayerManager>();
-            if (pm == null) pm = FindFirstObjectByType<PlayerManager>();
-            if (pm != null) pm.AddExperienceToActive(exp);
-
-            var wallet = ServiceLocator.GetOrCreate(() => new Wallet());
-            wallet.AddCoins(coins);
+            // Rule 3: rewards are requests — the server validates and applies.
+            Davidmon.Multiplayer.ServerApi.AwardExp("boss", exp);
+            Davidmon.Multiplayer.ServerApi.AwardCoins("boss", coins);
 
             GameEvents.RaiseShowLegendaryNotification(
                 "★ " + DisplayName + " defeated! +" + exp + " Exp, +" + coins + " coins");
@@ -599,10 +594,9 @@ namespace Davidmon.World
         {
             ItemData egg = ItemRegistry.Find("leaf_boss_egg");
             if (egg == null) return;
-            var inventory = ServiceLocator.GetOrCreate(() => new PlayerInventory());
-            int added = inventory.Add(egg, 1);
-            if (added > 0)
-                GameEvents.RaiseShowNotification("Boss drop: " + egg.DisplayName);
+            // Rule 3: the drop is a server-validated grant (arrives via inventory mirror).
+            Davidmon.Multiplayer.ServerApi.GrantItem("boss", egg.ItemId, 1);
+            GameEvents.RaiseShowNotification("Boss drop: " + egg.DisplayName);
         }
 
         private IEnumerator RespawnAfter(float seconds)

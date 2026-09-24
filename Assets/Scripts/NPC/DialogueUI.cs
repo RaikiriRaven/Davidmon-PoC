@@ -32,7 +32,7 @@ namespace Davidmon.NPC
 
         private void Awake()
         {
-            _input = FindAnyObjectByType<PlayerInputProvider>();
+            _input = PlayerInputProvider.LocalOrAny();
             _dialogue = ServiceLocator.GetOrCreate(() => new DialogueSystem());
             UIFactory.EnsureEventSystem();
             Build();
@@ -47,6 +47,7 @@ namespace Davidmon.NPC
             GameEvents.DialogueReplyShown += OnReplyShown;
             GameEvents.DialogueClosed += OnClosed;
             GameEvents.EscapeRequested += OnEscapeRequested;
+            PlayerInputProvider.LocalChanged += OnLocalInputChanged;
             if (_input != null) _input.InteractPressed += OnInteractPressed;
         }
 
@@ -59,7 +60,19 @@ namespace Davidmon.NPC
             GameEvents.DialogueReplyShown -= OnReplyShown;
             GameEvents.DialogueClosed -= OnClosed;
             GameEvents.EscapeRequested -= OnEscapeRequested;
+            PlayerInputProvider.LocalChanged -= OnLocalInputChanged;
             if (_input != null) _input.InteractPressed -= OnInteractPressed;
+        }
+
+        /// <summary>
+        /// Follows input ownership (multiplayer spawn/parking) so E advances the
+        /// dialogue on the local avatar instead of a parked player object.
+        /// </summary>
+        private void OnLocalInputChanged(PlayerInputProvider local)
+        {
+            if (_input != null) _input.InteractPressed -= OnInteractPressed;
+            _input = local ?? PlayerInputProvider.LocalOrAny();
+            if (_input != null && isActiveAndEnabled) _input.InteractPressed += OnInteractPressed;
         }
 
         private void Build()

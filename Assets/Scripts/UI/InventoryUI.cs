@@ -40,7 +40,7 @@ namespace Davidmon.UI
         {
             _inventory = ServiceLocator.GetOrCreate(() => new PlayerInventory());
             _wallet = ServiceLocator.GetOrCreate(() => new Wallet());
-            _input = FindAnyObjectByType<PlayerInputProvider>();
+            _input = PlayerInputProvider.LocalOrAny();
 
             UIFactory.EnsureEventSystem();
             Build();
@@ -50,6 +50,7 @@ namespace Davidmon.UI
         private void OnEnable()
         {
             if (_input != null) _input.InventoryPressed += Toggle;
+            PlayerInputProvider.LocalChanged += OnLocalInputChanged;
             GameEvents.InventoryChanged += OnInventoryChanged;
             GameEvents.CurrencyChanged += OnCurrencyChanged;
             GameEvents.EscapeRequested += OnEscapeRequested;
@@ -58,9 +59,18 @@ namespace Davidmon.UI
         private void OnDisable()
         {
             if (_input != null) _input.InventoryPressed -= Toggle;
+            PlayerInputProvider.LocalChanged -= OnLocalInputChanged;
             GameEvents.InventoryChanged -= OnInventoryChanged;
             GameEvents.CurrencyChanged -= OnCurrencyChanged;
             GameEvents.EscapeRequested -= OnEscapeRequested;
+        }
+
+        /// <summary>Follows input ownership (multiplayer spawn/parking).</summary>
+        private void OnLocalInputChanged(PlayerInputProvider local)
+        {
+            if (_input != null) _input.InventoryPressed -= Toggle;
+            _input = local ?? PlayerInputProvider.LocalOrAny();
+            if (_input != null && isActiveAndEnabled) _input.InventoryPressed += Toggle;
         }
 
         private void OnEscapeRequested()
@@ -129,7 +139,7 @@ namespace Davidmon.UI
         private void Show()
         {
             _root.SetActive(true);
-            _input?.SetMovementLocked(true);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(true);
             Core.CursorManager.Current?.RequestModal();
             Refresh();
         }
@@ -137,7 +147,7 @@ namespace Davidmon.UI
         private void Hide()
         {
             _root.SetActive(false);
-            _input?.SetMovementLocked(false);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(false);
             Core.CursorManager.Current?.ReleaseModal();
         }
 

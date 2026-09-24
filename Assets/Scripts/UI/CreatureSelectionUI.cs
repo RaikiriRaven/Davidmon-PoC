@@ -19,7 +19,6 @@ namespace Davidmon.UI
         public const string SaveKey = "davidmon.selected_creature";
 
         [SerializeField] private CreatureCatalog catalog;
-        [SerializeField] private PlayerInputProvider input;
         [SerializeField] private PlayerManager playerManager;
 
         private Canvas _canvas;
@@ -40,7 +39,6 @@ namespace Davidmon.UI
 
         private void Awake()
         {
-            if (input == null) input = FindAnyObjectByType<PlayerInputProvider>();
             if (playerManager == null) playerManager = FindAnyObjectByType<PlayerManager>();
 
             UIFactory.EnsureEventSystem();
@@ -223,14 +221,14 @@ namespace Davidmon.UI
         public void Show()
         {
             if (!_confirmed) _root.SetActive(true);
-            input?.SetMovementLocked(true);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(true);
             Core.CursorManager.Current?.RequestModal();
         }
 
         public void Hide()
         {
             _root.SetActive(false);
-            input?.SetMovementLocked(false);
+            PlayerInputProvider.LocalOrAny()?.SetMovementLocked(false);
             Core.CursorManager.Current?.ReleaseModal();
             GameEvents.RaiseCreatureSpawned(_selected != null ? _selected.CreatureId : "");
         }
